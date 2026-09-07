@@ -807,9 +807,17 @@
 				"name": "Travertine G12T01",
 				"description": "The organic warmth of classic Italian travertine stone structure. Ideal for serene, nature-inspired indoor surfaces."
 			},
+			"travertine-gp12t01": {
+				"name": "Travertine GP12T01",
+				"description": "Polished high-gloss variant of the Travertine T01 series in 60×120cm format, delivering refined reflections and luminous architectural depth."
+			},
 			"travertine-t06": {
 				"name": "Travertine G12T06",
 				"description": "Deep linear travertine formations with rich earthy tones. Adds height, structure, and timeless architectural class."
+			},
+			"travertine-gp12t06": {
+				"name": "Travertine GP12T06",
+				"description": "Large-format 60×120cm polished travertine tile highlighting crisp linear striations with a radiant, reflective surface."
 			},
 			"travertine-g88t01j": {
 				"name": "Travertine G88T01J",

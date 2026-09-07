@@ -120,8 +120,25 @@ const PRODUCT_CATALOG: ProductCatalogEntry[] = [
 		sceneImages: [
 			"/assets/60X120/Travertine T01 T06/PC G12T01.png",
 			"/assets/60X120/Travertine T01 T06/PC G12T01J.jpg",
-			"/assets/60X120/Travertine T01 T06/PC GP12T01.jpg",
 		],
+		allFacesImage: "/assets/60X120/Travertine T01 T06/G12T01 - FullFaces.jpg",
+	},
+	{
+		slug: "travertine-gp12t01",
+		skuCode: "GP12T01",
+		collectionId: "travertine",
+		category: "60×120cm",
+		sizes: ["60×120cm", "80×80cm"],
+		thumbnailUrl: "/assets/60X120/Travertine T01 T06/T01.png",
+		faceImages: [
+			"/assets/60X120/Travertine T01 T06/G12T01_01.jpg",
+			"/assets/60X120/Travertine T01 T06/G12T01_02.jpg",
+			"/assets/60X120/Travertine T01 T06/G12T01_03.jpg",
+			"/assets/60X120/Travertine T01 T06/G12T01_04.jpg",
+			"/assets/60X120/Travertine T01 T06/G12T01_05.jpg",
+			"/assets/60X120/Travertine T01 T06/G12T01_06.jpg",
+		],
+		sceneImages: ["/assets/60X120/Travertine T01 T06/PC GP12T01.jpg"],
 		allFacesImage: "/assets/60X120/Travertine T01 T06/G12T01 - FullFaces.jpg",
 	},
 	{
@@ -140,6 +157,24 @@ const PRODUCT_CATALOG: ProductCatalogEntry[] = [
 			"/assets/60X120/Travertine T01 T06/G12T06_06.jpg",
 		],
 		sceneImages: ["/assets/60X120/Travertine T01 T06/PC-G88T06-X-G12T06.jpg"],
+		allFacesImage: "/assets/60X120/Travertine T01 T06/G12T06 - FullFaces.jpg",
+	},
+	{
+		slug: "travertine-gp12t06",
+		skuCode: "GP12T06",
+		collectionId: "travertine",
+		category: "60×120cm",
+		sizes: ["60×120cm", "80×80cm"],
+		thumbnailUrl: "/assets/60X120/Travertine T01 T06/T06.png",
+		faceImages: [
+			"/assets/60X120/Travertine T01 T06/G12T06_01.jpg",
+			"/assets/60X120/Travertine T01 T06/G12T06_02.jpg",
+			"/assets/60X120/Travertine T01 T06/G12T06_03.jpg",
+			"/assets/60X120/Travertine T01 T06/G12T06_04.jpg",
+			"/assets/60X120/Travertine T01 T06/G12T06_05.jpg",
+			"/assets/60X120/Travertine T01 T06/G12T06_06.jpg",
+		],
+		sceneImages: ["/assets/60X120/Travertine T01 T06/PC GP12T06.jpg"],
 		allFacesImage: "/assets/60X120/Travertine T01 T06/G12T06 - FullFaces.jpg",
 	},
 	{
@@ -177,7 +212,6 @@ const PRODUCT_CATALOG: ProductCatalogEntry[] = [
 		sceneImages: [
 			"/assets/80X80/G88T06J/PC G88T06 X G12T06.jpg",
 			"/assets/80X80/G88T06J/PC G88T06.jpg",
-			"/assets/80X80/G88T06J/PC GP88T06.jpg",
 		],
 		allFacesImage: "/assets/80X80/G88T06J/G88T06J.jpg",
 	},
@@ -194,7 +228,7 @@ const PRODUCT_CATALOG: ProductCatalogEntry[] = [
 			"/assets/80X80/GP88T01J/GP88T01J_03.jpg",
 			"/assets/80X80/GP88T01J/GP88T01J_04.jpg",
 		],
-		sceneImages: ["/assets/80X80/G88T01J/PC G88T01.jpg"],
+		sceneImages: ["/assets/80X80/GP88T01J/PC GP88T01.jpg"],
 		allFacesImage: "/assets/80X80/GP88T01J/GP88T01J.jpg",
 	},
 	{
@@ -210,7 +244,7 @@ const PRODUCT_CATALOG: ProductCatalogEntry[] = [
 			"/assets/80X80/GP88T06J/GP88T06J_03.jpg",
 			"/assets/80X80/GP88T06J/GP88T06J_04.jpg",
 		],
-		sceneImages: ["/assets/80X80/G88T06J/PC G88T06 X G12T06.jpg"],
+		sceneImages: ["/assets/80X80/GP88T06J/PC GP88T06.jpg"],
 		allFacesImage: "/assets/80X80/GP88T06J/GP88T06J.jpg",
 	},
 
@@ -420,7 +454,10 @@ const PRODUCT_CATALOG: ProductCatalogEntry[] = [
 			"/assets/80X80/GP88736J/GP88736j_05.jpg",
 			"/assets/80X80/GP88736J/GP88736j_06.jpg",
 		],
-		sceneImages: ["/assets/80X80/GP88736J/PC GP88736.jpg"],
+		sceneImages: [
+			"/assets/80X80/GP88736J/PC GP88736.jpg",
+			"/assets/80X80/GP88736J/PC GP88736_2.jpg",
+		],
 		allFacesImage: "/assets/80X80/GP88736J/GP88736J.jpg",
 	},
 	{
@@ -482,7 +519,7 @@ const PRODUCT_CATALOG: ProductCatalogEntry[] = [
 			"/assets/60X120/Standard G12H02/G12H02_F5.jpg",
 			"/assets/60X120/Standard G12H02/G12H02_F6.jpg",
 		],
-		sceneImages: ["/assets/60X120/Standard G12H02/PC G12H02.png"],
+		sceneImages: ["/assets/60X120/Standard G12H02/PC GP12H02.jpg"],
 		allFacesImage: "/assets/60X120/Standard G12H02/G12H02 - FullFaces.jpg",
 		bodyType: "standard",
 	},

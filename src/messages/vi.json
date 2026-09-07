@@ -807,9 +807,17 @@
 				"name": "Travertine G12T01",
 				"description": "Vẻ ấm áp mộc mạc của đá tự nhiên travertine Ý huyền thoại. Lý tưởng cho không gian sống bình yên, gần gũi thiên nhiên."
 			},
+			"travertine-gp12t01": {
+				"name": "Travertine GP12T01",
+				"description": "Phiên bản bóng kiếng kích thước 60×120cm của dòng Travertine T01, mang đến vẻ sang trọng, phản chiếu tinh tế và chiều sâu không gian sống."
+			},
 			"travertine-t06": {
 				"name": "Travertine G12T06",
 				"description": "Các lớp vân đá travertine cắt dọc sắc nét cùng tông màu đất ấm áp, mang lại chiều sâu cấu trúc và vẻ đẹp kiến trúc trường tồn."
+			},
+			"travertine-gp12t06": {
+				"name": "Travertine GP12T06",
+				"description": "Phiên bản bóng kiếng khổ lớn 60×120cm của dòng Travertine T06, làm nổi bật đường vân cắt dọc sắc nét cùng độ bóng sáng rực rỡ."
 			},
 			"travertine-g88t01j": {
 				"name": "Travertine G88T01J",

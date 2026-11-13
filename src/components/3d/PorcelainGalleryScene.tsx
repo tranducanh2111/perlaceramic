@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useMemo, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { useTexture } from "@react-three/drei";
 import * as THREE from "three";
@@ -329,10 +329,6 @@ function GalleryScene({
 	);
 }
 
-function SceneFallback() {
-	return <div className="bg-sapphire-deep absolute inset-0" aria-hidden="true" />;
-}
-
 /** Floating porcelain gallery — desktop WebGL hero background. */
 export function PorcelainGalleryScene({
 	scrollProgressRef,
@@ -341,19 +337,6 @@ export function PorcelainGalleryScene({
 	isActive = true,
 	className,
 }: PorcelainGallerySceneProps) {
-	const [mounted, setMounted] = useState(false);
-
-	useEffect(() => {
-		const frameId = requestAnimationFrame(() => {
-			setMounted(true);
-		});
-		return () => cancelAnimationFrame(frameId);
-	}, []);
-
-	if (!mounted) {
-		return <SceneFallback />;
-	}
-
 	return (
 		<div className={className ?? "absolute inset-0 z-0"} aria-hidden="true">
 			<Canvas

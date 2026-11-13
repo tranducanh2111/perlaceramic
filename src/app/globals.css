@@ -746,7 +746,100 @@ h6 {
 	}
 }
 
+/* Cinematic letterbox — mirrors prior GSAP power3.inOut ~2.35s open */
+.landing-hero-letterbox {
+	animation: landing-hero-letterbox-open 2.35s cubic-bezier(0.76, 0, 0.24, 1) 0.12s forwards;
+	will-change: transform, opacity;
+}
+
+@keyframes landing-hero-letterbox-open {
+	from {
+		transform: scaleY(1);
+		opacity: 1;
+	}
+	to {
+		transform: scaleY(0);
+		opacity: 0;
+		visibility: hidden;
+	}
+}
+
+.landing-hero-media--zoom {
+	transform: scale(1.04);
+	animation: landing-hero-media-settle 2.75s cubic-bezier(0.22, 1, 0.36, 1) 0.12s forwards;
+}
+
+@keyframes landing-hero-media-settle {
+	to {
+		transform: scale(1);
+	}
+}
+
+.landing-hero-char {
+	transform: translateY(36px);
+	animation: landing-hero-rise 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.landing-hero-rise {
+	transform: translateY(36px);
+	animation: landing-hero-rise 0.85s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.landing-hero-rise--rail {
+	animation-delay: 1.41s;
+}
+
+.landing-hero-rise--copy {
+	animation-delay: 2.2s;
+}
+
+.landing-hero-rise--actions {
+	animation-delay: 2.4s;
+}
+
+.landing-hero-rise--scroll {
+	animation-delay: 2.55s;
+}
+
+@keyframes landing-hero-rise {
+	to {
+		transform: translateY(0);
+	}
+}
+
 @media (prefers-reduced-motion: reduce) {
+	.landing-hero-letterbox {
+		animation-duration: 0.9s;
+		animation-delay: 0s;
+	}
+
+	.landing-hero-media--zoom {
+		transform: none;
+		animation: none;
+	}
+
+	.landing-hero-char,
+	.landing-hero-rise {
+		transform: translateY(14px);
+		animation-duration: 0.7s;
+	}
+
+	.landing-hero-rise--rail {
+		animation-delay: 0.35s;
+	}
+
+	.landing-hero-rise--copy {
+		animation-delay: 0.55s;
+	}
+
+	.landing-hero-rise--actions {
+		animation-delay: 0.65s;
+	}
+
+	.landing-hero-rise--scroll {
+		animation-delay: 0.75s;
+	}
+
 	.landing-hero-scroll-pulse {
 		animation: none;
 		opacity: 0.7;

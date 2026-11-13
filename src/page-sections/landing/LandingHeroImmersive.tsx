@@ -4,83 +4,25 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { useGSAP } from "@gsap/react";
 import { Button } from "@/components/ui";
 import { DESKTOP_LAYOUT_QUERY } from "@/constants/breakpoints";
 import { LANDING_HERO_SCROLL_HEIGHT_VH } from "@/constants/landing-hero";
 import { MEDIA_PATHS } from "@/constants/media";
 import { ROUTES } from "@/constants/routes";
-import { useGsapLenisSync } from "@/hooks/useGsapLenisSync";
 import { useHeroCursorAmbience } from "@/hooks/useHeroCursorAmbience";
 import { useIsClient } from "@/hooks/useIsClient";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
-import { gsap, registerGsapPlugins, ScrollTrigger, SplitText } from "@/lib/gsap";
 import { cn } from "@/lib/cn";
 
-/** Boot WebGL after first paint — idle or first input — so the 3D gallery is the hero, not a video. */
-const WEBGL_IDLE_TIMEOUT_MS = 1100;
-const GSAP_INIT_DEFER_MS = 60;
-
-const PorcelainGalleryScene = dynamic(
+/** Desktop GSAP/WebGL — never in the mobile or first-paint bundle. */
+const LandingHeroDesktopEnhancements = dynamic(
 	() =>
-		import("@/components/3d/PorcelainGalleryScene").then((module) => ({
-			default: module.PorcelainGalleryScene,
+		import("@/page-sections/landing/LandingHeroDesktopEnhancements").then((module) => ({
+			default: module.LandingHeroDesktopEnhancements,
 		})),
 	{ ssr: false },
 );
-
-function scheduleHeroWebGLMount(onMount: () => void): () => void {
-	let hasMounted = false;
-	let idleCallbackId: number | null = null;
-	let timeoutId: ReturnType<typeof setTimeout> | null = null;
-
-	const cleanup = () => {
-		window.removeEventListener("pointerdown", runMount);
-		window.removeEventListener("pointermove", runMount);
-		window.removeEventListener("scroll", runMount);
-		window.removeEventListener("keydown", runMount);
-		window.removeEventListener("touchstart", runMount);
-		window.removeEventListener("wheel", runMount);
-		if (idleCallbackId !== null && typeof window.cancelIdleCallback === "function") {
-			window.cancelIdleCallback(idleCallbackId);
-		}
-		if (timeoutId !== null) {
-			clearTimeout(timeoutId);
-		}
-	};
-
-	const runMount = () => {
-		if (hasMounted) {
-			return;
-		}
-		hasMounted = true;
-		cleanup();
-		onMount();
-	};
-
-	window.addEventListener("pointerdown", runMount, { passive: true });
-	window.addEventListener("pointermove", runMount, { passive: true });
-	window.addEventListener("scroll", runMount, { passive: true });
-	window.addEventListener("keydown", runMount);
-	window.addEventListener("touchstart", runMount, { passive: true });
-	window.addEventListener("wheel", runMount, { passive: true });
-
-	if (typeof window.requestIdleCallback === "function") {
-		idleCallbackId = window.requestIdleCallback(runMount, {
-			timeout: WEBGL_IDLE_TIMEOUT_MS,
-		});
-	} else {
-		timeoutId = setTimeout(runMount, WEBGL_IDLE_TIMEOUT_MS);
-	}
-
-	return cleanup;
-}
-
-function scheduleGsapReady(onReady: () => void): () => void {
-	const timeoutId = setTimeout(onReady, GSAP_INIT_DEFER_MS);
-	return () => clearTimeout(timeoutId);
-}
 
 function ArrowGlyph({ className }: { className?: string }) {
 	return (
@@ -101,6 +43,33 @@ function ArrowGlyph({ className }: { className?: string }) {
 	);
 }
 
+/** CSS char stagger — same visual as SplitText without GSAP on the critical path. */
+function HeroCharLine({
+	text,
+	className,
+	baseDelayMs,
+	as: Tag = "span",
+}: {
+	text: string;
+	className?: string;
+	baseDelayMs: number;
+	as?: "span" | "em";
+}) {
+	return (
+		<Tag className={cn("block", className)} aria-hidden="true">
+			{Array.from(text).map((character, index) => (
+				<span
+					key={`${character}-${index}`}
+					className="landing-hero-char inline-block will-change-transform"
+					style={{ animationDelay: `${baseDelayMs + index * 26}ms` }}
+				>
+					{character === " " ? "\u00A0" : character}
+				</span>
+			))}
+		</Tag>
+	);
+}
+
 interface LandingHeroImmersiveProps {
 	isMobileSSR?: boolean;
 }
@@ -117,16 +86,14 @@ interface HeroCopyProps {
 	primaryCta: string;
 	secondaryCta: string;
 	scrollLabel: string;
+	prefersReducedMotion: boolean;
 	railRef?: React.RefObject<HTMLDivElement | null>;
 	atelierRef?: React.RefObject<HTMLParagraphElement | null>;
-	titleLine1Ref?: React.RefObject<HTMLSpanElement | null>;
-	titleLine2Ref?: React.RefObject<HTMLElement | null>;
 	descriptionRef?: React.RefObject<HTMLDivElement | null>;
 	actionsRef?: React.RefObject<HTMLDivElement | null>;
 	scrollRef?: React.RefObject<HTMLDivElement | null>;
 }
 
-/** Asymmetrical atelier composition — brand lives in the rail + display type, never a kicker. */
 function HeroAtelierCopy({
 	brandMark,
 	atelier,
@@ -139,19 +106,20 @@ function HeroAtelierCopy({
 	primaryCta,
 	secondaryCta,
 	scrollLabel,
+	prefersReducedMotion,
 	railRef,
 	atelierRef,
-	titleLine1Ref,
-	titleLine2Ref,
 	descriptionRef,
 	actionsRef,
 	scrollRef,
 }: HeroCopyProps) {
+	const line1Delay = prefersReducedMotion ? 400 : 1750;
+	const line2Delay = prefersReducedMotion ? 480 : 1980;
+
 	return (
 		<div className="relative flex h-full min-h-[100dvh] w-full flex-col justify-between px-5 py-24 sm:px-8 sm:py-28 lg:px-14 lg:py-16 xl:px-20">
-			{/* Top meta row */}
 			<div className="flex items-start justify-between gap-6">
-				<div ref={railRef} className="flex items-center gap-4">
+				<div ref={railRef} className="landing-hero-rise landing-hero-rise--rail flex items-center gap-4">
 					<span className="font-serif text-[1.65rem] leading-none tracking-[0.08em] text-champagne uppercase sm:text-[1.85rem]">
 						{brandMark}
 					</span>
@@ -173,33 +141,30 @@ function HeroAtelierCopy({
 				</p>
 			</div>
 
-			{/* Primary stage — left-weighted editorial block */}
 			<div className="relative z-10 flex max-w-3xl flex-col items-start text-left lg:max-w-[46rem]">
 				<h1
 					className="text-display-xl xl:text-display-2xl text-linen font-serif leading-[0.95] font-light tracking-[-0.03em]"
 					aria-label={`${titleLine1} ${titleLine2}`}
 				>
-					<span ref={titleLine1Ref} className="block">
-						{titleLine1}
-					</span>
-					<em
-						ref={titleLine2Ref}
-						className="text-champagne mt-1 block font-serif italic"
-					>
-						{titleLine2}
-					</em>
+					<HeroCharLine text={titleLine1} baseDelayMs={line1Delay} />
+					<HeroCharLine
+						text={titleLine2}
+						baseDelayMs={line2Delay}
+						as="em"
+						className="text-champagne mt-1 font-serif italic"
+					/>
 				</h1>
 
 				<div
 					ref={descriptionRef}
-					className="text-body-lg text-linen/68 mt-8 max-w-md font-sans leading-relaxed sm:mt-10"
+					className="landing-hero-rise landing-hero-rise--copy text-body-lg text-linen/68 mt-8 max-w-md font-sans leading-relaxed sm:mt-10"
 				>
 					{description}
 				</div>
 
 				<div
 					ref={actionsRef}
-					className="mt-10 flex w-full flex-col gap-3 sm:mt-12 sm:w-auto sm:flex-row sm:items-center sm:gap-4"
+					className="landing-hero-rise landing-hero-rise--actions mt-10 flex w-full flex-col gap-3 sm:mt-12 sm:w-auto sm:flex-row sm:items-center sm:gap-4"
 				>
 					<Button
 						href={ROUTES.projects}
@@ -222,11 +187,7 @@ function HeroAtelierCopy({
 				</div>
 			</div>
 
-			{/* Bottom scroll cue */}
-			<div
-				ref={scrollRef}
-				className="flex items-end justify-between gap-6"
-			>
+			<div ref={scrollRef} className="landing-hero-rise landing-hero-rise--scroll flex items-end justify-between gap-6">
 				<div className="flex items-center gap-4">
 					<span className="bg-champagne/70 relative h-12 w-px overflow-hidden">
 						<span className="landing-hero-scroll-pulse bg-linen absolute inset-x-0 top-0 h-1/2" />
@@ -259,29 +220,26 @@ function ArchitecturalFrame() {
 	);
 }
 
-/** Immersive 3D porcelain gallery hero — atelier editorial chrome over WebGL. */
+/**
+ * Immersive porcelain gallery hero.
+ * Critical path is CSS + poster only; desktop GSAP/WebGL enhance after input.
+ */
 export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps) {
 	const t = useTranslations("landing.hero");
 	const prefersReducedMotion = usePrefersReducedMotion();
 	const isDesktopHero = useMediaQuery(DESKTOP_LAYOUT_QUERY, !isMobileSSR);
 	const hasFinePointer = useMediaQuery("(pointer: fine)", true);
-	const useWebGL = isDesktopHero && !prefersReducedMotion;
+	const useDesktopMotion = isDesktopHero && !prefersReducedMotion;
 	const enableCursorAmbience = isDesktopHero && !prefersReducedMotion && hasFinePointer;
-
-	useGsapLenisSync(useWebGL);
 
 	const sectionRef = useRef<HTMLElement>(null);
 	const pinRef = useRef<HTMLDivElement>(null);
-	const letterboxTopRef = useRef<HTMLDivElement>(null);
-	const letterboxBottomRef = useRef<HTMLDivElement>(null);
 	const contentRef = useRef<HTMLDivElement>(null);
 	const backdropRef = useRef<HTMLDivElement>(null);
 	const canvasWrapRef = useRef<HTMLDivElement>(null);
 	const cursorGlowRef = useRef<HTMLDivElement>(null);
 	const railRef = useRef<HTMLDivElement>(null);
 	const atelierRef = useRef<HTMLParagraphElement>(null);
-	const titleLine1Ref = useRef<HTMLSpanElement>(null);
-	const titleLine2Ref = useRef<HTMLElement>(null);
 	const descriptionRef = useRef<HTMLDivElement>(null);
 	const actionsRef = useRef<HTMLDivElement>(null);
 	const scrollRef = useRef<HTMLDivElement>(null);
@@ -292,8 +250,6 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 	const introCompleteRef = useRef(false);
 	const resetAmbienceRef = useRef<() => void>(() => undefined);
 	const [isSceneActive, setIsSceneActive] = useState(true);
-	const [isGsapReady, setIsGsapReady] = useState(false);
-	const [shouldLoad3D, setShouldLoad3D] = useState(false);
 	const isClient = useIsClient();
 	const isCursorAmbienceReady = isClient && enableCursorAmbience;
 
@@ -312,16 +268,24 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 		resetAmbienceRef.current = resetAmbience;
 	}, [resetAmbience]);
 
+	/** Mark CSS intro complete for cursor ambience; match prior GSAP timeline length. */
 	useEffect(() => {
-		if (!useWebGL) {
+		const timeoutId = window.setTimeout(
+			() => {
+				introCompleteRef.current = true;
+			},
+			prefersReducedMotion ? 900 : 2800,
+		);
+		return () => window.clearTimeout(timeoutId);
+	}, [prefersReducedMotion]);
+
+	/** Warm the desktop WebGL/GSAP chunk as soon as we know this viewport needs it. */
+	useEffect(() => {
+		if (!useDesktopMotion) {
 			return;
 		}
-		return scheduleHeroWebGLMount(() => setShouldLoad3D(true));
-	}, [useWebGL]);
-
-	useEffect(() => {
-		return scheduleGsapReady(() => setIsGsapReady(true));
-	}, []);
+		void import("@/page-sections/landing/LandingHeroDesktopEnhancements");
+	}, [useDesktopMotion]);
 
 	const onHeroPointerEnter = useCallback(() => {
 		isPointerOverRef.current = true;
@@ -348,278 +312,33 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 		</>
 	);
 
-	useEffect(() => {
-		if (!useWebGL || !sectionRef.current) {
-			return;
-		}
-
-		const observer = new IntersectionObserver(
-			([entry]) => {
-				setIsSceneActive(Boolean(entry?.isIntersecting));
-			},
-			{ threshold: 0, rootMargin: "0px" },
-		);
-
-		observer.observe(sectionRef.current);
-		return () => observer.disconnect();
-	}, [useWebGL]);
-
-	useGSAP(
-		() => {
-			if (!isGsapReady) {
-				return;
-			}
-
-			registerGsapPlugins();
-			introCompleteRef.current = false;
-
-			const section = sectionRef.current;
-			const pin = pinRef.current;
-			const letterboxTop = letterboxTopRef.current;
-			const letterboxBottom = letterboxBottomRef.current;
-			const content = contentRef.current;
-			const backdrop = backdropRef.current;
-			const canvasWrap = canvasWrapRef.current;
-			const titleLine1 = titleLine1Ref.current;
-			const titleLine2 = titleLine2Ref.current;
-			const descriptionEl = descriptionRef.current;
-			const actions = actionsRef.current;
-			const rail = railRef.current;
-			const atelier = atelierRef.current;
-			const scrollCue = scrollRef.current;
-
-			if (
-				!section ||
-				!pin ||
-				!letterboxTop ||
-				!letterboxBottom ||
-				!content ||
-				!titleLine1 ||
-				!titleLine2 ||
-				!descriptionEl ||
-				!actions ||
-				!rail ||
-				!scrollCue
-			) {
-				return;
-			}
-
-			const splitLine1 = prefersReducedMotion
-				? null
-				: SplitText.create(titleLine1, { type: "chars" });
-			const splitLine2 = prefersReducedMotion
-				? null
-				: SplitText.create(titleLine2, { type: "chars" });
-
-			titleLine1.removeAttribute("aria-label");
-			titleLine2.removeAttribute("aria-label");
-
-			const riseTargets = prefersReducedMotion
-				? [rail, atelier, titleLine1, titleLine2, descriptionEl, actions, scrollCue].filter(
-						Boolean,
-					)
-				: [
-						rail,
-						atelier,
-						...(splitLine1?.chars ?? []),
-						...(splitLine2?.chars ?? []),
-						descriptionEl,
-						actions,
-						scrollCue,
-					].filter(Boolean);
-
-			gsap.set(riseTargets, { opacity: 1, y: prefersReducedMotion ? 14 : 36 });
-			if (canvasWrap) {
-				gsap.set(canvasWrap, { opacity: 1, scale: prefersReducedMotion ? 1 : 1.04 });
-			}
-
-			gsap.set(letterboxTop, {
-				scaleY: 1,
-				opacity: 1,
-				transformOrigin: "center top",
-				force3D: true,
-				autoAlpha: 1,
-			});
-			gsap.set(letterboxBottom, {
-				scaleY: 1,
-				opacity: 1,
-				transformOrigin: "center bottom",
-				force3D: true,
-				autoAlpha: 1,
-			});
-
-			const hideLetterboxes = () => {
-				gsap.set([letterboxTop, letterboxBottom], {
-					autoAlpha: 0,
-					pointerEvents: "none",
-				});
-			};
-
-			const revealDuration = prefersReducedMotion ? 0.9 : 2.35;
-			const copyRevealAt = revealDuration * 0.55;
-			const introTimeline = gsap.timeline({ delay: 0.12 });
-
-			introTimeline
-				.add("reveal")
-				.to(
-					[letterboxTop, letterboxBottom],
-					{
-						scaleY: 0,
-						opacity: 0,
-						duration: revealDuration,
-						ease: "power3.inOut",
-					},
-					"reveal",
-				);
-
-			if (canvasWrap && !prefersReducedMotion) {
-				introTimeline.to(
-					canvasWrap,
-					{
-						scale: 1,
-						duration: revealDuration + 0.4,
-						ease: "power2.out",
-					},
-					"reveal",
-				);
-			}
-
-			introTimeline
-				.call(hideLetterboxes, undefined, `reveal+=${revealDuration - 0.06}`)
-				.to(
-					rail,
-					{ y: 0, duration: 0.85, ease: "power3.out" },
-					`reveal+=${copyRevealAt}`,
-				);
-
-			if (atelier) {
-				introTimeline.to(
-					atelier,
-					{ y: 0, duration: 0.85, ease: "power3.out" },
-					"<0.05",
-				);
-			}
-
-			introTimeline
-				.to(
-					splitLine1?.chars ?? titleLine1,
-					{
-						y: 0,
-						duration: 0.8,
-						stagger: prefersReducedMotion ? 0 : 0.026,
-						ease: "power3.out",
-					},
-					"-=0.5",
-				)
-				.to(
-					splitLine2?.chars ?? titleLine2,
-					{
-						y: 0,
-						duration: 0.8,
-						stagger: prefersReducedMotion ? 0 : 0.026,
-						ease: "power3.out",
-					},
-					"-=0.58",
-				)
-				.to(
-					descriptionEl,
-					{ y: 0, duration: 0.75, ease: "power3.out" },
-					"-=0.48",
-				)
-				.to(actions, { y: 0, duration: 0.75, ease: "power3.out" }, "-=0.55")
-				.to(scrollCue, { y: 0, duration: 0.7, ease: "power3.out" }, "-=0.5");
-
-			introTimeline.eventCallback("onComplete", () => {
-				introCompleteRef.current = true;
-			});
-
-			const setContentOpacity = gsap.quickSetter(content, "opacity");
-			const setContentY = gsap.quickSetter(content, "y", "px");
-			const setBackdropOpacity = backdrop
-				? gsap.quickSetter(backdrop, "opacity")
-				: null;
-
-			const scrollTrigger = useWebGL
-				? ScrollTrigger.create({
-						trigger: section,
-						start: "top top",
-						end: `+=${LANDING_HERO_SCROLL_HEIGHT_VH}%`,
-						pin: pin,
-						scrub: 0.85,
-						anticipatePin: 1,
-						onUpdate: (self) => {
-							scrollProgressRef.current = self.progress;
-
-							if (self.progress > 0.08) {
-								resetAmbienceRef.current();
-							}
-
-							setContentOpacity(1 - self.progress * 1.35);
-							setContentY(-self.progress * 80);
-
-							const fadeStart = 0.28;
-							const backdropOpacity =
-								self.progress <= fadeStart
-									? 1
-									: 1 - (self.progress - fadeStart) / (1 - fadeStart);
-
-							setBackdropOpacity?.(Math.max(0, backdropOpacity));
-						},
-						onLeave: () => {
-							gsap.set(pin, { autoAlpha: 0, pointerEvents: "none" });
-							if (backdrop) {
-								gsap.set(backdrop, { autoAlpha: 0 });
-							}
-							if (canvasWrap) {
-								gsap.set(canvasWrap, { autoAlpha: 0 });
-							}
-							setIsSceneActive(false);
-						},
-						onEnterBack: () => {
-							gsap.set(pin, { autoAlpha: 1, pointerEvents: "auto" });
-							if (backdrop) {
-								gsap.set(backdrop, { autoAlpha: 1, opacity: 1 });
-							}
-							if (canvasWrap) {
-								gsap.set(canvasWrap, { autoAlpha: 1, opacity: 1 });
-							}
-							setIsSceneActive(true);
-						},
-					})
-				: null;
-
-			return () => {
-				introTimeline.kill();
-				scrollTrigger?.kill();
-				splitLine1?.revert();
-				splitLine2?.revert();
-			};
-		},
-		{
-			scope: sectionRef,
-			dependencies: [prefersReducedMotion, useWebGL, isGsapReady],
-		},
-	);
-
 	return (
 		<section
 			ref={sectionRef}
 			className="bg-sapphire-deep relative isolate w-full overflow-hidden"
-			style={{ height: useWebGL ? `${LANDING_HERO_SCROLL_HEIGHT_VH}vh` : "100dvh" }}
+			style={{ height: useDesktopMotion ? `${LANDING_HERO_SCROLL_HEIGHT_VH}vh` : "100dvh" }}
 			aria-label={`${t("titleLine1")} ${t("titleLine2")}`}
 		>
 			<div
 				ref={pinRef}
 				className={cn(
 					"relative h-[100dvh] w-full overflow-hidden lg:h-screen",
-					useWebGL && "z-[1]",
+					// Sticky approximates the GSAP pin before the desktop chunk loads.
+					useDesktopMotion && "sticky top-0 z-[1]",
 				)}
 				onPointerEnter={isDesktopHero ? onHeroPointerEnter : undefined}
 				onPointerMove={isDesktopHero ? onHeroPointerMove : undefined}
 				onPointerLeave={isDesktopHero ? onHeroPointerLeave : undefined}
 			>
 				<div ref={backdropRef} className="absolute inset-0 z-0">
-					<div ref={canvasWrapRef} className="absolute inset-0 overflow-hidden will-change-transform">
+					<div
+						ref={canvasWrapRef}
+						className={cn(
+							"landing-hero-media absolute inset-0 overflow-hidden will-change-transform",
+							!prefersReducedMotion && "landing-hero-media--zoom",
+						)}
+					>
+						{/* Poster only for LCP / mobile — desktop WebGL mounts with the hero, not after. */}
 						<Image
 							src={MEDIA_PATHS.images.landing.heroGalleryPoster}
 							alt={t("titleLine1")}
@@ -628,18 +347,24 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 							sizes="100vw"
 							className="object-cover object-center"
 						/>
-						{shouldLoad3D && (
-							<PorcelainGalleryScene
+						{useDesktopMotion && (
+							<LandingHeroDesktopEnhancements
+								sectionRef={sectionRef}
+								pinRef={pinRef}
+								contentRef={contentRef}
+								backdropRef={backdropRef}
+								canvasWrapRef={canvasWrapRef}
 								scrollProgressRef={scrollProgressRef}
 								mouseRef={mouseRef}
 								isPointerOverRef={isPointerOverRef}
-								isActive={isSceneActive}
-								className="absolute inset-0"
+								introCompleteRef={introCompleteRef}
+								resetAmbienceRef={resetAmbienceRef}
+								isSceneActive={isSceneActive}
+								onSceneActiveChange={setIsSceneActive}
 							/>
 						)}
 					</div>
 
-					{/* Readable veil — keeps type legible without smothering the gallery */}
 					<div
 						className="pointer-events-none absolute inset-0 bg-gradient-to-r from-sapphire-deep/88 via-sapphire-deep/45 to-sapphire-deep/15 sm:via-sapphire-deep/35"
 						aria-hidden="true"
@@ -666,14 +391,8 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 				<ArchitecturalFrame />
 
 				<div className="pointer-events-none absolute inset-0 z-30 overflow-hidden" aria-hidden="true">
-					<div
-						ref={letterboxTopRef}
-						className="bg-sapphire-deep absolute inset-x-0 top-0 h-1/2 origin-top will-change-transform"
-					/>
-					<div
-						ref={letterboxBottomRef}
-						className="bg-sapphire-deep absolute inset-x-0 bottom-0 h-1/2 origin-bottom will-change-transform"
-					/>
+					<div className="landing-hero-letterbox landing-hero-letterbox--top bg-sapphire-deep absolute inset-x-0 top-0 h-1/2 origin-top" />
+					<div className="landing-hero-letterbox landing-hero-letterbox--bottom bg-sapphire-deep absolute inset-x-0 bottom-0 h-1/2 origin-bottom" />
 				</div>
 
 				<div ref={contentRef} className="relative z-20 h-full w-full">
@@ -689,10 +408,9 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 						primaryCta={t("primaryCta")}
 						secondaryCta={t("secondaryCta")}
 						scrollLabel={t("scroll")}
+						prefersReducedMotion={prefersReducedMotion}
 						railRef={railRef}
 						atelierRef={atelierRef}
-						titleLine1Ref={titleLine1Ref}
-						titleLine2Ref={titleLine2Ref}
 						descriptionRef={descriptionRef}
 						actionsRef={actionsRef}
 						scrollRef={scrollRef}

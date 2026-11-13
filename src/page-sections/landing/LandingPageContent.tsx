@@ -4,7 +4,15 @@ import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { useLenisResizeOnMount } from "@/hooks/useLenisResizeOnMount";
 import { LandingBrandStatement } from "@/page-sections/landing/LandingBrandStatement";
-import { LandingHeroImmersive } from "@/page-sections/landing/LandingHeroImmersive";
+
+/** Hero is its own chunk so GSAP/Three stay out of the shared landing shell graph. */
+const LandingHeroImmersive = dynamic(
+	() =>
+		import("@/page-sections/landing/LandingHeroImmersive").then((m) => ({
+			default: m.LandingHeroImmersive,
+		})),
+	{ ssr: true },
+);
 
 const LandingStats = dynamic(
 	() =>

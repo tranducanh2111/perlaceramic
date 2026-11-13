@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { headers } from "next/headers";
 import { PageMediaPreload } from "@/components/media";
+import { PORCELAIN_SLAB_TEXTURES } from "@/constants/landing-hero";
 import { MEDIA_PATHS } from "@/constants/media";
 import { LandingPageContent } from "@/page-sections/landing/LandingPageContent";
 import { buildAlternatesForLocale, buildOpenGraphForLocale, SITE_URL } from "@/constants/seo";
+import { encodePublicAssetPath } from "@/lib/products/media";
 
 interface HomePageProps {
 	params: Promise<{ locale: string }>;
@@ -102,13 +104,11 @@ export default async function HomePage({ params }: HomePageProps) {
 
 	return (
 		<main className="relative" style={{ position: "relative" }}>
+			{/* Gallery poster = LCP; desktop also preloads WebGL slab textures. */}
+			<PageMediaPreload imagePaths={[MEDIA_PATHS.images.landing.heroGalleryPoster]} />
 			<PageMediaPreload
-				imagePaths={[
-					// Desktop 3D hero LCP placeholder
-					MEDIA_PATHS.images.landing.heroGalleryPoster,
-					// Mobile / reduced-motion cinematic video poster
-					MEDIA_PATHS.images.landing.heroPoster,
-				]}
+				desktopOnly
+				imagePaths={PORCELAIN_SLAB_TEXTURES.map((path) => encodePublicAssetPath(path))}
 			/>
 			<script
 				type="application/ld+json"

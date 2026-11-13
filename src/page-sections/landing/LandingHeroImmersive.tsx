@@ -18,6 +18,11 @@ import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
 import { gsap, registerGsapPlugins, ScrollTrigger, SplitText } from "@/lib/gsap";
 import { cn } from "@/lib/cn";
 
+/** Lets SSR/LCP paint before GSAP mutates the hero DOM. */
+const GSAP_INIT_DEFER_MS = 60;
+/** WebGL starts on idle or first input — timed to overlap the letterbox open. */
+const WEBGL_IDLE_TIMEOUT_MS = 900;
+
 const PorcelainGalleryScene = dynamic(
 	() =>
 		import("@/components/3d/PorcelainGalleryScene").then((module) => ({
@@ -25,6 +30,47 @@ const PorcelainGalleryScene = dynamic(
 		})),
 	{ ssr: false },
 );
+
+function scheduleHeroWebGLMount(onMount: () => void): () => void {
+	let hasMounted = false;
+	let idleCallbackId: number | null = null;
+	let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+	const cleanup = () => {
+		window.removeEventListener("pointermove", runMount);
+		window.removeEventListener("scroll", runMount);
+		window.removeEventListener("keydown", runMount);
+		if (idleCallbackId !== null && typeof window.cancelIdleCallback === "function") {
+			window.cancelIdleCallback(idleCallbackId);
+		}
+		if (timeoutId !== null) {
+			clearTimeout(timeoutId);
+		}
+	};
+
+	const runMount = () => {
+		if (hasMounted) {
+			return;
+		}
+		hasMounted = true;
+		cleanup();
+		onMount();
+	};
+
+	window.addEventListener("pointermove", runMount, { passive: true });
+	window.addEventListener("scroll", runMount, { passive: true });
+	window.addEventListener("keydown", runMount);
+
+	if (typeof window.requestIdleCallback === "function") {
+		idleCallbackId = window.requestIdleCallback(runMount, {
+			timeout: WEBGL_IDLE_TIMEOUT_MS,
+		});
+	} else {
+		timeoutId = setTimeout(runMount, WEBGL_IDLE_TIMEOUT_MS);
+	}
+
+	return cleanup;
+}
 
 interface LandingHeroImmersiveProps {
 	isMobileSSR?: boolean;
@@ -112,7 +158,6 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 	const letterboxTopRef = useRef<HTMLDivElement>(null);
 	const letterboxBottomRef = useRef<HTMLDivElement>(null);
 	const contentRef = useRef<HTMLDivElement>(null);
-	const scrimRef = useRef<HTMLDivElement>(null);
 	const backdropRef = useRef<HTMLDivElement>(null);
 	const canvasWrapRef = useRef<HTMLDivElement>(null);
 	const cursorGlowRef = useRef<HTMLDivElement>(null);
@@ -128,6 +173,8 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 	const introCompleteRef = useRef(false);
 	const resetAmbienceRef = useRef<() => void>(() => undefined);
 	const [isSceneActive, setIsSceneActive] = useState(true);
+	const [isGsapReady, setIsGsapReady] = useState(false);
+	const [shouldLoad3D, setShouldLoad3D] = useState(false);
 	const isClient = useIsClient();
 	const isCursorAmbienceReady = isClient && enableCursorAmbience;
 
@@ -145,6 +192,18 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 	useEffect(() => {
 		resetAmbienceRef.current = resetAmbience;
 	}, [resetAmbience]);
+
+	useEffect(() => {
+		if (!useWebGL) {
+			return;
+		}
+		return scheduleHeroWebGLMount(() => setShouldLoad3D(true));
+	}, [useWebGL]);
+
+	useEffect(() => {
+		const timeoutId = setTimeout(() => setIsGsapReady(true), GSAP_INIT_DEFER_MS);
+		return () => clearTimeout(timeoutId);
+	}, []);
 
 	const onHeroPointerEnter = useCallback(() => {
 		isPointerOverRef.current = true;
@@ -189,6 +248,10 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 
 	useGSAP(
 		() => {
+			if (!isGsapReady) {
+				return;
+			}
+
 			registerGsapPlugins();
 			introCompleteRef.current = false;
 
@@ -197,7 +260,6 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 			const letterboxTop = letterboxTopRef.current;
 			const letterboxBottom = letterboxBottomRef.current;
 			const content = contentRef.current;
-			const scrim = scrimRef.current;
 			const backdrop = backdropRef.current;
 			const canvasWrap = canvasWrapRef.current;
 			const heroMedia = canvasWrap;
@@ -418,12 +480,6 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 							if (backdrop) {
 								gsap.set(backdrop, { opacity: Math.max(0, backdropOpacity) });
 							}
-
-							if (scrim) {
-								gsap.set(scrim, {
-									opacity: 0.42 * backdropOpacity,
-								});
-							}
 						},
 						onLeave: () => {
 							gsap.set(pin, { autoAlpha: 0, pointerEvents: "none" });
@@ -457,7 +513,7 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 		},
 		{
 			scope: sectionRef,
-			dependencies: [prefersReducedMotion, useWebGL],
+			dependencies: [prefersReducedMotion, useWebGL, isGsapReady],
 		},
 	);
 
@@ -479,15 +535,17 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 				onPointerLeave={isDesktopHero ? onHeroPointerLeave : undefined}
 			>
 				<div ref={backdropRef} className="absolute inset-0 z-0">
-					{!useWebGL && (
-						<div
-							className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_50%,var(--color-sapphire-mist)_0%,var(--color-sapphire-deep)_70%)]"
-							aria-hidden="true"
+					{/* Poster is the LCP paint; WebGL mounts on idle atop it. */}
+					<div ref={canvasWrapRef} className="absolute inset-0 overflow-hidden opacity-0">
+						<Image
+							src={MEDIA_PATHS.images.landing.heroGalleryPoster}
+							alt={t("titleLine1")}
+							fill
+							priority
+							sizes="100vw"
+							className="object-cover object-center"
 						/>
-					)}
-
-					{useWebGL ? (
-						<div ref={canvasWrapRef} className="absolute inset-0 overflow-hidden opacity-0">
+						{shouldLoad3D && (
 							<PorcelainGalleryScene
 								scrollProgressRef={scrollProgressRef}
 								mouseRef={mouseRef}
@@ -495,27 +553,8 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 								isActive={isSceneActive}
 								className="absolute inset-0"
 							/>
-						</div>
-					) : (
-						<div ref={canvasWrapRef} className="absolute inset-0 opacity-0">
-							<Image
-								src={MEDIA_PATHS.images.landing.heroGalleryPoster}
-								alt={t("titleLine1")}
-								fill
-								priority
-								sizes="100vw"
-								className="object-cover object-center"
-							/>
-						</div>
-					)}
-
-					{!useWebGL && (
-						<div
-							ref={scrimRef}
-							className="pointer-events-none absolute inset-0 bg-gradient-to-t from-sapphire-deep/88 via-sapphire-deep/25 to-sapphire-deep/40"
-							aria-hidden="true"
-						/>
-					)}
+						)}
+					</div>
 				</div>
 
 				{isCursorAmbienceReady && (

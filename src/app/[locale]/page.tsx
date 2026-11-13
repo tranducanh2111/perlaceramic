@@ -104,7 +104,9 @@ export default async function HomePage({ params }: HomePageProps) {
 		<main className="relative" style={{ position: "relative" }}>
 			<PageMediaPreload
 				imagePaths={[
+					// Desktop 3D hero LCP placeholder
 					MEDIA_PATHS.images.landing.heroGalleryPoster,
+					// Mobile / reduced-motion cinematic video poster
 					MEDIA_PATHS.images.landing.heroPoster,
 				]}
 			/>

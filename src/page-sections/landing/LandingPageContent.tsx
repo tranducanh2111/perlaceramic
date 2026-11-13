@@ -1,9 +1,21 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { DESKTOP_LAYOUT_QUERY } from "@/constants/breakpoints";
 import { useLenisResizeOnMount } from "@/hooks/useLenisResizeOnMount";
-import { LandingHeroImmersive } from "@/page-sections/landing/LandingHeroImmersive";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
 import { LandingBrandStatement } from "@/page-sections/landing/LandingBrandStatement";
+import { LandingHero } from "@/page-sections/landing/LandingHero";
+
+/** Desktop-only: keeps GSAP/Three out of the mobile landing bundle. */
+const LandingHeroImmersive = dynamic(
+	() =>
+		import("@/page-sections/landing/LandingHeroImmersive").then((m) => ({
+			default: m.LandingHeroImmersive,
+		})),
+	{ ssr: true },
+);
 
 const LandingStats = dynamic(
 	() =>
@@ -65,6 +77,18 @@ const LandingVisualStory = dynamic(
 	{ ssr: false },
 );
 
+/** Video cinematic hero on mobile / reduced-motion; luxury 3D gallery on desktop. */
+function LandingHeroSection({ isMobileSSR }: { isMobileSSR?: boolean }) {
+	const isDesktopHero = useMediaQuery(DESKTOP_LAYOUT_QUERY, !isMobileSSR);
+	const prefersReducedMotion = usePrefersReducedMotion();
+
+	if (!isDesktopHero || prefersReducedMotion) {
+		return <LandingHero isMobileSSR={isMobileSSR} />;
+	}
+
+	return <LandingHeroImmersive isMobileSSR={isMobileSSR} />;
+}
+
 /**
  * Client shell (hero + brand statement + stats + testimonials + cta are SSR'd).
  * Complex browser-API sections (Projects, Materials, Process, VisualStory) code-split
@@ -74,7 +98,7 @@ export function LandingPageContent({ isMobileSSR }: { isMobileSSR?: boolean }) {
 
 	return (
 		<>
-			<LandingHeroImmersive isMobileSSR={isMobileSSR} />
+			<LandingHeroSection isMobileSSR={isMobileSSR} />
 			<LandingBrandStatement />
 			<LandingProjects />
 			<LandingMaterials />

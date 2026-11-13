@@ -304,10 +304,11 @@ export function PorcelainGalleryScene({
 	const [mounted, setMounted] = useState(false);
 
 	useEffect(() => {
-		const handle = requestAnimationFrame(() => {
+		// Parent already defers mount; one rAF avoids competing with the current paint.
+		const frameId = requestAnimationFrame(() => {
 			setMounted(true);
 		});
-		return () => cancelAnimationFrame(handle);
+		return () => cancelAnimationFrame(frameId);
 	}, []);
 
 	if (!mounted) {

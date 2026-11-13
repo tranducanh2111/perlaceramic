@@ -2,8 +2,20 @@
 
 import dynamic from "next/dynamic";
 import { useLenisResizeOnMount } from "@/hooks/useLenisResizeOnMount";
-import { LandingHeroImmersive } from "@/page-sections/landing/LandingHeroImmersive";
 import { LandingBrandStatement } from "@/page-sections/landing/LandingBrandStatement";
+
+/**
+ * Hero is code-split to defer the GSAP + Three.js bundle evaluation until after
+ * the initial HTML paint, reducing desktop Total Blocking Time significantly.
+ * isMobileSSR is passed through so the SSR media-query hint still works.
+ */
+const LandingHeroImmersive = dynamic(
+	() =>
+		import("@/page-sections/landing/LandingHeroImmersive").then((m) => ({
+			default: m.LandingHeroImmersive,
+		})),
+	{ ssr: false },
+);
 
 const LandingStats = dynamic(
 	() =>

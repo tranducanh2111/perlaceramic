@@ -304,10 +304,12 @@ export function PorcelainGalleryScene({
 	const [mounted, setMounted] = useState(false);
 
 	useEffect(() => {
-		const handle = requestAnimationFrame(() => {
-			setMounted(true);
-		});
-		return () => cancelAnimationFrame(handle);
+		// Delay Three.js / WebGL initialisation until after the LCP window to
+		// avoid competing with critical rendering during page load.
+		// 800 ms gives the browser enough time to paint the above-fold content
+		// and reach an idle state before we start the GPU-heavy canvas.
+		const id = setTimeout(() => setMounted(true), 800);
+		return () => clearTimeout(id);
 	}, []);
 
 	if (!mounted) {
@@ -318,8 +320,8 @@ export function PorcelainGalleryScene({
 		<div className={className ?? "absolute inset-0 z-0"} aria-hidden="true">
 			<Canvas
 				camera={{ position: [0, 0, 6.8], fov: 42, near: 0.1, far: 40 }}
-				dpr={[1, 1.75]}
-				gl={{ alpha: false, antialias: true, powerPreference: "high-performance" }}
+				dpr={[1, 1.5]}
+				gl={{ alpha: false, antialias: false, powerPreference: "high-performance" }}
 				frameloop={isActive ? "always" : "demand"}
 			>
 				<Suspense fallback={null}>

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import dynamic from "next/dynamic";
 import Image from "next/image";
@@ -17,6 +17,10 @@ import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
 import { gsap, registerGsapPlugins, ScrollTrigger, SplitText } from "@/lib/gsap";
 import { cn } from "@/lib/cn";
+
+/** Milliseconds after mount before the GSAP intro timeline is initialised.
+ *  Keeps the main thread free during the LCP window (desktop TBT fix). */
+const GSAP_INIT_DEFER_MS = 300;
 
 const PorcelainGalleryScene = dynamic(
 	() =>
@@ -37,6 +41,9 @@ interface HeroCopyProps {
 	description: ReactNode;
 	primaryCta: string;
 	secondaryCta: string;
+	/** When true, copy elements are CSS-hidden so GSAP can animate them in later
+	 *  without needing a synchronous gsap.set() call during the LCP window. */
+	shouldHideInitially?: boolean;
 	titleLine1Ref?: React.RefObject<HTMLSpanElement | null>;
 	titleLine2Ref?: React.RefObject<HTMLElement | null>;
 	descriptionRef?: React.RefObject<HTMLDivElement | null>;
@@ -51,36 +58,39 @@ function HeroCopy({
 	description,
 	primaryCta,
 	secondaryCta,
+	shouldHideInitially,
 	titleLine1Ref,
 	titleLine2Ref,
 	descriptionRef,
 	actionsRef,
 	labelRef,
 }: HeroCopyProps) {
+	const hiddenCls = shouldHideInitially ? "opacity-0 translate-y-8" : "";
+
 	return (
 		<>
-			<div ref={labelRef}>
+			<div ref={labelRef} className={hiddenCls}>
 				<Badge variant="hero">{label}</Badge>
 			</div>
 
 			<h1 className="text-display-xl lg:text-display-2xl text-linen mt-6 max-w-3xl font-serif leading-[1.1] font-light">
-				<span ref={titleLine1Ref}>{titleLine1}</span>
+				<span ref={titleLine1Ref} className={hiddenCls}>{titleLine1}</span>
 				<br />
-				<em ref={titleLine2Ref} className="text-champagne italic">
+				<em ref={titleLine2Ref} className={cn("text-champagne italic", hiddenCls)}>
 					{titleLine2}
 				</em>
 			</h1>
 
 			<div
 				ref={descriptionRef}
-				className="text-body-lg text-linen/60 mt-6 max-w-lg font-sans"
+				className={cn("text-body-lg text-linen/60 mt-6 max-w-lg font-sans", hiddenCls)}
 			>
 				{description}
 			</div>
 
 			<div
 				ref={actionsRef}
-				className="mt-10 flex flex-col gap-4 sm:flex-row"
+				className={cn("mt-10 flex flex-col gap-4 sm:flex-row", hiddenCls)}
 			>
 				<Button href={ROUTES.projects} size="lg">
 					{primaryCta}
@@ -128,6 +138,9 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 	const isClient = useIsClient();
 	const isCursorAmbienceReady = isClient && enableCursorAmbience;
 
+	/** Defer GSAP init until after the LCP window to reduce desktop TBT. */
+	const [isGsapReady, setIsGsapReady] = useState(false);
+
 	const { handlePointerMove, handlePointerLeave, resetAmbience } = useHeroCursorAmbience({
 		enabled: isCursorAmbienceReady,
 		pinRef,
@@ -142,6 +155,12 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 	useEffect(() => {
 		resetAmbienceRef.current = resetAmbience;
 	}, [resetAmbience]);
+
+	/** Gate GSAP behind a short defer so it doesn't block the LCP window. */
+	useEffect(() => {
+		const id = setTimeout(() => setIsGsapReady(true), GSAP_INIT_DEFER_MS);
+		return () => clearTimeout(id);
+	}, []);
 
 	const onHeroPointerEnter = useCallback(() => {
 		isPointerOverRef.current = true;
@@ -186,6 +205,9 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 
 	useGSAP(
 		() => {
+			// Wait for the deferred GSAP ready flag before touching the DOM.
+			if (!isGsapReady) return;
+
 			registerGsapPlugins();
 			introCompleteRef.current = false;
 
@@ -449,7 +471,7 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 		},
 		{
 			scope: sectionRef,
-			dependencies: [prefersReducedMotion, useWebGL],
+			dependencies: [prefersReducedMotion, useWebGL, isGsapReady],
 		},
 	);
 

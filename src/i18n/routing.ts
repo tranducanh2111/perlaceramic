@@ -4,6 +4,8 @@ export const routing = defineRouting({
 	locales: ["vi", "en"],
 	defaultLocale: "vi",
 	localePrefix: "always",
+	localeDetection: false,
+	alternateLinks: false,
 });
 
 export type AppLocale = (typeof routing.locales)[number];

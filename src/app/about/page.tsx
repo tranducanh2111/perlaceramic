@@ -1,6 +1,6 @@
-import { redirect } from "next/navigation";
+import { permanentRedirect } from "next/navigation";
 import { routing } from "@/i18n/routing";
 
 export default function AboutRedirectPage() {
-	redirect(`/${routing.defaultLocale}/about`);
+	permanentRedirect(`/${routing.defaultLocale}/about`);
 }

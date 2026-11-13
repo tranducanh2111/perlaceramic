@@ -26,7 +26,7 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/about-us",
-        destination: "/about",
+        destination: "/vi/about",
         permanent: true,
       },
       {
@@ -41,7 +41,7 @@ const nextConfig: NextConfig = {
       },
       {
         source: "/projetcs",
-        destination: "/projects",
+        destination: "/vi/projects",
         permanent: true,
       },
       {

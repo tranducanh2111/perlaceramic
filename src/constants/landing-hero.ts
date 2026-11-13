@@ -1,17 +1,17 @@
 /**
  * Single tile face textures for the porcelain gallery hero.
- * Each path is one `faceImages` entry from the product catalog — never `allFacesImage`
- * composites (e.g. `*FACES*`, `*FullFaces*`, `*-6 faces*`).
+ * Prefer `.detail.webp` sidecars so WebGL uploads less decode work than full JPGs.
+ * Never use `allFacesImage` composites (e.g. `*FACES*`, `*FullFaces*`, `*-6 faces*`).
  */
 export const PORCELAIN_SLAB_TEXTURES = [
-	"/assets/60X120/Inspire G12962J/G12962J (1).jpg",
-	"/assets/60X120/Inspire G12967J/G12967J_02.jpg",
-	"/assets/60X120/Travertine T01 T06/G12T01.jpg",
-	"/assets/60X120/Travertine T01 T06/G12T06.jpg",
-	"/assets/60X120/Orient Star G12W05J/G12W05J-2.jpg",
-	"/assets/60X120/Sunshine G12032J/G12032J_03.jpg",
-	"/assets/60X120/Peace GP12H03J (Flow)/GP12H03J_1_4.jpg",
-	"/assets/60X120/INDO SS1261307/SS1261307.jpg",
+	"/assets/60X120/Inspire G12962J/G12962J (1).detail.webp",
+	"/assets/60X120/Inspire G12967J/G12967J_02.detail.webp",
+	"/assets/60X120/Travertine T01 T06/G12T01.detail.webp",
+	"/assets/60X120/Travertine T01 T06/G12T06.detail.webp",
+	"/assets/60X120/Orient Star G12W05J/G12W05J-2.detail.webp",
+	"/assets/60X120/Sunshine G12032J/G12032J_03.detail.webp",
+	"/assets/60X120/Peace GP12H03J (Flow)/GP12H03J_1_4.detail.webp",
+	"/assets/60X120/INDO SS1261307/SS1261307.detail.webp",
 ] as const;
 
 export interface PorcelainSlabLayout {

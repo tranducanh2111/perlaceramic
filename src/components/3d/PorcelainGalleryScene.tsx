@@ -16,6 +16,9 @@ import {
 	HERO_GOLD_DUST_PRESET,
 } from "@/components/3d/ChampagneGoldDust";
 
+/** Cap GPU upload size — slabs are small in frame; 768px is enough for the look. */
+const HERO_TEXTURE_MAX_EDGE = 768;
+
 export interface PorcelainGallerySceneProps {
 	scrollProgressRef: React.RefObject<number>;
 	mouseRef: React.RefObject<{ x: number; y: number }>;
@@ -33,10 +36,46 @@ interface SlabProps {
 	isPointerOverRef?: React.RefObject<boolean>;
 }
 
+function downscaleTextureImage(texture: THREE.Texture, maxEdge: number): void {
+	const source = texture.image as
+		| HTMLImageElement
+		| HTMLCanvasElement
+		| ImageBitmap
+		| undefined;
+	if (!source || !("width" in source) || !source.width || !source.height) {
+		return;
+	}
+
+	const longestEdge = Math.max(source.width, source.height);
+	if (longestEdge <= maxEdge) {
+		return;
+	}
+
+	const scale = maxEdge / longestEdge;
+	const targetWidth = Math.max(1, Math.round(source.width * scale));
+	const targetHeight = Math.max(1, Math.round(source.height * scale));
+	const canvas = document.createElement("canvas");
+	canvas.width = targetWidth;
+	canvas.height = targetHeight;
+	const context = canvas.getContext("2d");
+	if (!context) {
+		return;
+	}
+
+	context.drawImage(source as CanvasImageSource, 0, 0, targetWidth, targetHeight);
+	texture.image = canvas;
+	texture.needsUpdate = true;
+}
+
 function configureTexture(texture: THREE.Texture): void {
+	downscaleTextureImage(texture, HERO_TEXTURE_MAX_EDGE);
 	texture.wrapS = THREE.ClampToEdgeWrapping;
 	texture.wrapT = THREE.ClampToEdgeWrapping;
 	texture.colorSpace = THREE.SRGBColorSpace;
+	texture.anisotropy = 1;
+	texture.generateMipmaps = true;
+	texture.minFilter = THREE.LinearMipmapLinearFilter;
+	texture.magFilter = THREE.LinearFilter;
 }
 
 function PorcelainSlab({
@@ -89,14 +128,12 @@ function PorcelainSlab({
 	return (
 		<mesh ref={meshRef} position={config.position} rotation={config.rotation}>
 			<boxGeometry args={[1.12, 1.72, 0.042]} />
-			<meshPhysicalMaterial
+			{/* Standard material keeps the ceramic look without clearcoat shader cost. */}
+			<meshStandardMaterial
 				map={texture}
-				roughness={0.16}
-				metalness={0.06}
-				clearcoat={0.9}
-				clearcoatRoughness={0.12}
-				reflectivity={0.95}
-				envMapIntensity={0.85}
+				roughness={0.22}
+				metalness={0.08}
+				envMapIntensity={0.7}
 			/>
 		</mesh>
 	);
@@ -108,7 +145,10 @@ function GoldDust({
 	scrollProgressRef: React.RefObject<number>;
 }) {
 	return (
-		<ChampagneGoldDustParticles preset={HERO_GOLD_DUST_PRESET} scrollProgressRef={scrollProgressRef} />
+		<ChampagneGoldDustParticles
+			preset={HERO_GOLD_DUST_PRESET}
+			scrollProgressRef={scrollProgressRef}
+		/>
 	);
 }
 
@@ -260,9 +300,9 @@ function GalleryScene({
 	return (
 		<>
 			<color attach="background" args={["#071A2B"]} />
-			<ambientLight intensity={0.28} color="#E8EEF4" />
-			<directionalLight position={[4, 6, 5]} intensity={0.55} color="#F4F4F6" />
-			<directionalLight position={[-5, 2, -2]} intensity={0.18} color="#1A3D5C" />
+			<ambientLight intensity={0.32} color="#E8EEF4" />
+			<directionalLight position={[4, 6, 5]} intensity={0.6} color="#F4F4F6" />
+			<directionalLight position={[-5, 2, -2]} intensity={0.2} color="#1A3D5C" />
 			<RimLightSweep
 				scrollProgressRef={scrollProgressRef}
 				mouseRef={mouseRef}
@@ -304,7 +344,6 @@ export function PorcelainGalleryScene({
 	const [mounted, setMounted] = useState(false);
 
 	useEffect(() => {
-		// Parent already defers mount; one rAF avoids competing with the current paint.
 		const frameId = requestAnimationFrame(() => {
 			setMounted(true);
 		});
@@ -319,9 +358,16 @@ export function PorcelainGalleryScene({
 		<div className={className ?? "absolute inset-0 z-0"} aria-hidden="true">
 			<Canvas
 				camera={{ position: [0, 0, 6.8], fov: 42, near: 0.1, far: 40 }}
-				dpr={[1, 1.5]}
-				gl={{ alpha: false, antialias: false, powerPreference: "high-performance" }}
+				dpr={1}
+				gl={{
+					alpha: false,
+					antialias: false,
+					powerPreference: "high-performance",
+					stencil: false,
+					depth: true,
+				}}
 				frameloop={isActive ? "always" : "demand"}
+				performance={{ min: 0.5 }}
 			>
 				<Suspense fallback={null}>
 					<GalleryScene

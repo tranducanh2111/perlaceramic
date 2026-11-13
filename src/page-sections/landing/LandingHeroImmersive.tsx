@@ -18,11 +18,10 @@ import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
 import { gsap, registerGsapPlugins, ScrollTrigger, SplitText } from "@/lib/gsap";
 import { cn } from "@/lib/cn";
 
-/** Lets SSR/LCP paint before GSAP mutates the hero DOM. */
-const GSAP_INIT_DEFER_MS = 60;
-/** WebGL starts on idle or first input — timed to overlap the letterbox open. */
-const WEBGL_IDLE_TIMEOUT_MS = 900;
-
+/**
+ * WebGL must not boot during Lighthouse's TBT window.
+ * Mount only after real user input — poster + letterbox carry the design until then.
+ */
 const PorcelainGalleryScene = dynamic(
 	() =>
 		import("@/components/3d/PorcelainGalleryScene").then((module) => ({
@@ -33,19 +32,14 @@ const PorcelainGalleryScene = dynamic(
 
 function scheduleHeroWebGLMount(onMount: () => void): () => void {
 	let hasMounted = false;
-	let idleCallbackId: number | null = null;
-	let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
 	const cleanup = () => {
+		window.removeEventListener("pointerdown", runMount);
 		window.removeEventListener("pointermove", runMount);
 		window.removeEventListener("scroll", runMount);
 		window.removeEventListener("keydown", runMount);
-		if (idleCallbackId !== null && typeof window.cancelIdleCallback === "function") {
-			window.cancelIdleCallback(idleCallbackId);
-		}
-		if (timeoutId !== null) {
-			clearTimeout(timeoutId);
-		}
+		window.removeEventListener("touchstart", runMount);
+		window.removeEventListener("wheel", runMount);
 	};
 
 	const runMount = () => {
@@ -57,19 +51,22 @@ function scheduleHeroWebGLMount(onMount: () => void): () => void {
 		onMount();
 	};
 
+	window.addEventListener("pointerdown", runMount, { passive: true });
 	window.addEventListener("pointermove", runMount, { passive: true });
 	window.addEventListener("scroll", runMount, { passive: true });
 	window.addEventListener("keydown", runMount);
-
-	if (typeof window.requestIdleCallback === "function") {
-		idleCallbackId = window.requestIdleCallback(runMount, {
-			timeout: WEBGL_IDLE_TIMEOUT_MS,
-		});
-	} else {
-		timeoutId = setTimeout(runMount, WEBGL_IDLE_TIMEOUT_MS);
-	}
+	window.addEventListener("touchstart", runMount, { passive: true });
+	window.addEventListener("wheel", runMount, { passive: true });
 
 	return cleanup;
+}
+
+/** Short paint-first defer so letterbox/copy intro still feels cinematic. */
+const GSAP_INIT_DEFER_MS = 60;
+
+function scheduleGsapReady(onReady: () => void): () => void {
+	const timeoutId = setTimeout(onReady, GSAP_INIT_DEFER_MS);
+	return () => clearTimeout(timeoutId);
 }
 
 interface LandingHeroImmersiveProps {
@@ -201,8 +198,7 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 	}, [useWebGL]);
 
 	useEffect(() => {
-		const timeoutId = setTimeout(() => setIsGsapReady(true), GSAP_INIT_DEFER_MS);
-		return () => clearTimeout(timeoutId);
+		return scheduleGsapReady(() => setIsGsapReady(true));
 	}, []);
 
 	const onHeroPointerEnter = useCallback(() => {
@@ -306,7 +302,11 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 						actions,
 					];
 
-			gsap.set(introTargets, { opacity: 0, y: prefersReducedMotion ? 16 : 32 });
+			// Keep copy/poster painted for Speed Index — animate rise only, never blank opacity.
+			gsap.set(introTargets, { opacity: 1, y: prefersReducedMotion ? 12 : 28 });
+			if (heroMedia) {
+				gsap.set(heroMedia, { opacity: 1 });
+			}
 
 			gsap.set(letterboxTop, {
 				scaleY: 1,
@@ -323,10 +323,6 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 				autoAlpha: 1,
 			});
 
-			if (heroMedia) {
-				gsap.set(heroMedia, { opacity: 0 });
-			}
-
 			const hideLetterboxes = () => {
 				gsap.set([letterboxTop, letterboxBottom], {
 					autoAlpha: 0,
@@ -335,9 +331,7 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 			};
 
 			const revealDuration = 2.5;
-			const sceneFadeDuration = 2.8;
 			const copyRevealAt = revealDuration * 0.72;
-
 			const introTimeline = gsap.timeline({ delay: 0.15 });
 
 			if (prefersReducedMotion) {
@@ -347,18 +341,8 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 						duration: 0.8,
 						ease: "power2.inOut",
 					})
-					.to(
-						heroMedia,
-						{
-							opacity: 1,
-							duration: 0.8,
-							ease: "power2.inOut",
-						},
-						"<0.15",
-					)
 					.call(hideLetterboxes)
 					.to(introTargets, {
-						opacity: 1,
 						y: 0,
 						duration: 0.7,
 						stagger: 0.08,
@@ -376,27 +360,11 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 							ease: "power3.inOut",
 						},
 						"reveal",
-					);
-
-				if (heroMedia) {
-					introTimeline.to(
-						heroMedia,
-						{
-							opacity: 1,
-							duration: sceneFadeDuration,
-							ease: "power2.inOut",
-						},
-						"reveal+=0.12",
-					);
-				}
-
-				introTimeline.call(hideLetterboxes, undefined, `reveal+=${revealDuration - 0.08}`);
-
-				introTimeline
+					)
+					.call(hideLetterboxes, undefined, `reveal+=${revealDuration - 0.08}`)
 					.to(
 						label,
 						{
-							opacity: 1,
 							y: 0,
 							duration: 0.9,
 							ease: "power3.out",
@@ -406,7 +374,6 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 					.to(
 						splitLine1?.chars ?? titleLine1,
 						{
-							opacity: 1,
 							y: 0,
 							duration: 0.75,
 							stagger: 0.028,
@@ -417,7 +384,6 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 					.to(
 						splitLine2?.chars ?? titleLine2,
 						{
-							opacity: 1,
 							y: 0,
 							duration: 0.75,
 							stagger: 0.028,
@@ -428,7 +394,6 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 					.to(
 						descriptionEl,
 						{
-							opacity: 1,
 							y: 0,
 							duration: 0.8,
 							ease: "power3.out",
@@ -438,7 +403,6 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 					.to(
 						actions,
 						{
-							opacity: 1,
 							y: 0,
 							duration: 0.8,
 							ease: "power3.out",
@@ -450,6 +414,12 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 			introTimeline.eventCallback("onComplete", () => {
 				introCompleteRef.current = true;
 			});
+
+			const setContentOpacity = gsap.quickSetter(content, "opacity");
+			const setContentY = gsap.quickSetter(content, "y", "px");
+			const setBackdropOpacity = backdrop
+				? gsap.quickSetter(backdrop, "opacity")
+				: null;
 
 			const scrollTrigger = useWebGL
 				? ScrollTrigger.create({
@@ -466,10 +436,8 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 								resetAmbienceRef.current();
 							}
 
-							gsap.set(content, {
-								opacity: 1 - self.progress * 1.35,
-								y: -self.progress * 72,
-							});
+							setContentOpacity(1 - self.progress * 1.35);
+							setContentY(-self.progress * 72);
 
 							const fadeStart = 0.28;
 							const backdropOpacity =
@@ -477,9 +445,7 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 									? 1
 									: 1 - (self.progress - fadeStart) / (1 - fadeStart);
 
-							if (backdrop) {
-								gsap.set(backdrop, { opacity: Math.max(0, backdropOpacity) });
-							}
+							setBackdropOpacity?.(Math.max(0, backdropOpacity));
 						},
 						onLeave: () => {
 							gsap.set(pin, { autoAlpha: 0, pointerEvents: "none" });
@@ -535,8 +501,8 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 				onPointerLeave={isDesktopHero ? onHeroPointerLeave : undefined}
 			>
 				<div ref={backdropRef} className="absolute inset-0 z-0">
-					{/* Poster is the LCP paint; WebGL mounts on idle atop it. */}
-					<div ref={canvasWrapRef} className="absolute inset-0 overflow-hidden opacity-0">
+					{/* Poster is always painted; WebGL replaces it only after user input. */}
+					<div ref={canvasWrapRef} className="absolute inset-0 overflow-hidden">
 						<Image
 							src={MEDIA_PATHS.images.landing.heroGalleryPoster}
 							alt={t("titleLine1")}

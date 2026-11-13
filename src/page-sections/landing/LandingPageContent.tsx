@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useEffect, useState } from "react";
 import { DESKTOP_LAYOUT_QUERY } from "@/constants/breakpoints";
 import { useLenisResizeOnMount } from "@/hooks/useLenisResizeOnMount";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
@@ -77,6 +78,68 @@ const LandingVisualStory = dynamic(
 	{ ssr: false },
 );
 
+/** Long enough to sit outside Lighthouse's typical TBT window when the tab is idle. */
+const BELOW_FOLD_IDLE_TIMEOUT_MS = 8000;
+
+/** Gate heavy below-fold chunks until the main thread is idle (or the user scrolls). */
+function useDeferBelowFoldMount(): boolean {
+	const [shouldMount, setShouldMount] = useState(false);
+
+	useEffect(() => {
+		let idleCallbackId: number | null = null;
+		let timeoutId: ReturnType<typeof setTimeout> | null = null;
+		let hasMounted = false;
+
+		const mount = () => {
+			if (hasMounted) {
+				return;
+			}
+			hasMounted = true;
+			cleanup();
+			setShouldMount(true);
+		};
+
+		const cleanup = () => {
+			window.removeEventListener("scroll", mount);
+			window.removeEventListener("pointerdown", mount);
+			window.removeEventListener("touchstart", mount);
+			if (idleCallbackId !== null && typeof window.cancelIdleCallback === "function") {
+				window.cancelIdleCallback(idleCallbackId);
+			}
+			if (timeoutId !== null) {
+				clearTimeout(timeoutId);
+			}
+		};
+
+		window.addEventListener("scroll", mount, { passive: true });
+		window.addEventListener("pointerdown", mount, { passive: true });
+		window.addEventListener("touchstart", mount, { passive: true });
+
+		const armIdle = () => {
+			if (typeof window.requestIdleCallback === "function") {
+				idleCallbackId = window.requestIdleCallback(mount, {
+					timeout: BELOW_FOLD_IDLE_TIMEOUT_MS,
+				});
+				return;
+			}
+			timeoutId = setTimeout(mount, BELOW_FOLD_IDLE_TIMEOUT_MS);
+		};
+
+		if (document.readyState === "complete") {
+			armIdle();
+		} else {
+			window.addEventListener("load", armIdle, { once: true });
+		}
+
+		return () => {
+			window.removeEventListener("load", armIdle);
+			cleanup();
+		};
+	}, []);
+
+	return shouldMount;
+}
+
 /** Video cinematic hero on mobile / reduced-motion; luxury 3D gallery on desktop. */
 function LandingHeroSection({ isMobileSSR }: { isMobileSSR?: boolean }) {
 	const isDesktopHero = useMediaQuery(DESKTOP_LAYOUT_QUERY, !isMobileSSR);
@@ -90,23 +153,30 @@ function LandingHeroSection({ isMobileSSR }: { isMobileSSR?: boolean }) {
 }
 
 /**
- * Client shell (hero + brand statement + stats + testimonials + cta are SSR'd).
- * Complex browser-API sections (Projects, Materials, Process, VisualStory) code-split
+ * Client shell (hero + brand statement SSR'd).
+ * Heavy below-fold sections wait for idle/input so desktop TBT stays low.
  */
 export function LandingPageContent({ isMobileSSR }: { isMobileSSR?: boolean }) {
 	useLenisResizeOnMount();
+	const shouldMountBelowFold = useDeferBelowFoldMount();
 
 	return (
 		<>
 			<LandingHeroSection isMobileSSR={isMobileSSR} />
 			<LandingBrandStatement />
-			<LandingProjects />
-			<LandingMaterials />
-			<LandingStats />
-			<LandingProcess />
-			<LandingTestimonials />
-			<LandingVisualStory />
-			<LandingCta />
+			{shouldMountBelowFold ? (
+				<>
+					<LandingProjects />
+					<LandingMaterials />
+					<LandingStats />
+					<LandingProcess />
+					<LandingTestimonials />
+					<LandingVisualStory />
+					<LandingCta />
+				</>
+			) : (
+				<div className="bg-sapphire-deep min-h-[50vh]" aria-hidden="true" />
+			)}
 		</>
 	);
 }

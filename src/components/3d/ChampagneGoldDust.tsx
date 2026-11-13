@@ -63,7 +63,7 @@ function generateSpiralPositions(particleCount: number): Float32Array {
 }
 
 export const HERO_GOLD_DUST_PRESET: ChampagneGoldDustPreset = {
-	particleCount: 140,
+	particleCount: 72,
 	size: 0.028,
 	baseOpacity: 0.42,
 	opacityRange: [0.42, 0.08],

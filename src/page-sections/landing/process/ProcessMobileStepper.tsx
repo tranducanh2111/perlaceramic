@@ -28,7 +28,7 @@ function ProcessStepCard({ step, index }: ProcessStepCardProps) {
 				>
 					{step.number}
 				</Text>
-				<Text variant="h4" className="text-linen mt-1">
+				<Text as="h3" variant="h4" className="text-linen mt-1">
 					{t(`steps.${step.id}.title`)}
 				</Text>
 				<div className="bg-champagne my-4 h-px w-12" aria-hidden />

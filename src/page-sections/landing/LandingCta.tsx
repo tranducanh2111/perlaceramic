@@ -43,7 +43,7 @@ export function LandingCta() {
 							target="_blank"
 							rel="noopener noreferrer"
 							aria-label={`${t("officeAddress")}, ${commonT("opensInNewWindow")}`}
-							className="text-linen/45 hover:text-champagne inline-flex items-center gap-2 transition-colors duration-300"
+							className="text-linen/70 hover:text-champagne inline-flex items-center gap-2 transition-colors duration-300"
 						>
 							<MapPin className="text-champagne h-4 w-4 shrink-0" />
 							<Text variant="body-sm">{t("officeAddress")}</Text>

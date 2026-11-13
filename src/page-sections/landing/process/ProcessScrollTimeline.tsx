@@ -147,6 +147,7 @@ export function ProcessScrollTimeline() {
 										</div>
 
 										<Text
+											as="span"
 											variant="h5"
 											className={cn(
 												"absolute left-14 whitespace-nowrap transition-colors duration-500",

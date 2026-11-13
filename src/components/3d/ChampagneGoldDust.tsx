@@ -159,7 +159,7 @@ export function ChampagneGoldDustCanvas({
 		return () => cancelAnimationFrame(handle);
 	}, []);
 
-	if (!mounted) {
+	if (!mounted || !isActive) {
 		return <div className={cn("absolute inset-0", className)} aria-hidden="true" />;
 	}
 
@@ -168,7 +168,7 @@ export function ChampagneGoldDustCanvas({
 			<Canvas
 				camera={{ position: [0, 0, cameraZ], fov: cameraFov, near: 0.1, far: 40 }}
 				dpr={[1, 1.5]}
-				gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
+				gl={{ alpha: true, antialias: false, powerPreference: "high-performance" }}
 				frameloop={isActive ? "always" : "demand"}
 			>
 				<Suspense fallback={null}>

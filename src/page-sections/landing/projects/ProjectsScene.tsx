@@ -47,7 +47,8 @@ export function ProjectsSpiralExperience({ geometry }: ProjectsSpiralExperienceP
 	const totalCards = FEATURED_PROJECTS.length;
 	const scrollDriverHeight = `${totalCards * SCROLL_VH_PER_CARD}vh`;
 	const [activeIndex, setActiveIndex] = useState(0);
-	const [isParticlesActive, setIsParticlesActive] = useState(true);
+	/** Start inactive so the below-fold 3D particle canvas does not consume CPU/GPU during initial page load. */
+	const [isParticlesActive, setIsParticlesActive] = useState(false);
 
 	const { scrollYProgress } = useScroll({
 		target: spiralZoneRef,
@@ -68,7 +69,7 @@ export function ProjectsSpiralExperience({ geometry }: ProjectsSpiralExperienceP
 			([entry]) => {
 				setIsParticlesActive(Boolean(entry?.isIntersecting));
 			},
-			{ threshold: 0, rootMargin: "0px" },
+			{ threshold: 0, rootMargin: "300px 0px" },
 		);
 
 		observer.observe(zone);

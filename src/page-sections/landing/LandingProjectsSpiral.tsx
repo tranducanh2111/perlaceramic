@@ -20,15 +20,10 @@ export function LandingProjectsSpiral() {
 	useEffect(() => {
 		if (!geometry || !lenisControls) return;
 
-		const resizeLenis = () => lenisControls.resize();
-		resizeLenis();
+		const handleResize = () => lenisControls.resize();
+		const timeoutId = setTimeout(handleResize, 150);
 
-		const rafId = requestAnimationFrame(() => {
-			resizeLenis();
-			requestAnimationFrame(resizeLenis);
-		});
-
-		return () => cancelAnimationFrame(rafId);
+		return () => clearTimeout(timeoutId);
 	}, [geometry, lenisControls]);
 
 	return (

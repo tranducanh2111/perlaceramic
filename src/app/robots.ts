@@ -10,6 +10,11 @@ export default function robots(): MetadataRoute.Robots {
 				disallow: ["/api/"],
 			},
 			{
+				userAgent: "Googlebot",
+				allow: "/",
+				disallow: ["/api/"],
+			},
+			{
 				userAgent: "Google-Extended",
 				allow: "/",
 			},

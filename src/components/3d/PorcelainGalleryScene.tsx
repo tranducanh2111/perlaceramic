@@ -304,22 +304,10 @@ export function PorcelainGalleryScene({
 	const [mounted, setMounted] = useState(false);
 
 	useEffect(() => {
-		// Delay Three.js / WebGL initialisation until the main thread is idle
-		// so it never competes with the critical initial paint or LCP.
-		if (typeof window !== "undefined" && "requestIdleCallback" in window) {
-			const idleId = (window as unknown as { requestIdleCallback: (cb: () => void, opts?: { timeout: number }) => number }).requestIdleCallback(
-				() => setMounted(true),
-				{ timeout: 1200 },
-			);
-			return () => {
-				if ("cancelIdleCallback" in window) {
-					(window as unknown as { cancelIdleCallback: (id: number) => void }).cancelIdleCallback(idleId);
-				}
-			};
-		}
-
-		const timeoutId = setTimeout(() => setMounted(true), 600);
-		return () => clearTimeout(timeoutId);
+		const handle = requestAnimationFrame(() => {
+			setMounted(true);
+		});
+		return () => cancelAnimationFrame(handle);
 	}, []);
 
 	if (!mounted) {

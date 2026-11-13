@@ -18,10 +18,6 @@ import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
 import { gsap, registerGsapPlugins, ScrollTrigger, SplitText } from "@/lib/gsap";
 import { cn } from "@/lib/cn";
 
-/** Milliseconds after mount before the GSAP intro timeline is initialised.
- *  Allows the browser to paint SSR content cleanly before attaching animations. */
-const GSAP_INIT_DEFER_MS = 60;
-
 const PorcelainGalleryScene = dynamic(
 	() =>
 		import("@/components/3d/PorcelainGalleryScene").then((module) => ({
@@ -135,11 +131,6 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 	const isClient = useIsClient();
 	const isCursorAmbienceReady = isClient && enableCursorAmbience;
 
-	/** Defer GSAP init until after the LCP window to reduce desktop TBT. */
-	const [isGsapReady, setIsGsapReady] = useState(false);
-	/** Defer 3D WebGL scene until user interacts (move/scroll) or initial load settles. */
-	const [shouldLoad3D, setShouldLoad3D] = useState(false);
-
 	const { handlePointerMove, handlePointerLeave, resetAmbience } = useHeroCursorAmbience({
 		enabled: isCursorAmbienceReady,
 		pinRef,
@@ -154,42 +145,6 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 	useEffect(() => {
 		resetAmbienceRef.current = resetAmbience;
 	}, [resetAmbience]);
-
-	/** Defer 3D canvas until first user interaction or when the page is completely idle. */
-	useEffect(() => {
-		if (!useWebGL) return;
-
-		let timeoutId: ReturnType<typeof setTimeout> | null = null;
-
-		const handleInteraction = () => {
-			setShouldLoad3D(true);
-			cleanup();
-		};
-
-		const cleanup = () => {
-			window.removeEventListener("pointermove", handleInteraction);
-			window.removeEventListener("scroll", handleInteraction);
-			window.removeEventListener("touchstart", handleInteraction);
-			if (timeoutId) clearTimeout(timeoutId);
-		};
-
-		window.addEventListener("pointermove", handleInteraction, { passive: true, once: true });
-		window.addEventListener("scroll", handleInteraction, { passive: true, once: true });
-		window.addEventListener("touchstart", handleInteraction, { passive: true, once: true });
-
-		timeoutId = setTimeout(() => {
-			setShouldLoad3D(true);
-			cleanup();
-		}, 3000);
-
-		return cleanup;
-	}, [useWebGL]);
-
-	/** Gate GSAP behind a short defer so it doesn't block the LCP window. */
-	useEffect(() => {
-		const id = setTimeout(() => setIsGsapReady(true), GSAP_INIT_DEFER_MS);
-		return () => clearTimeout(id);
-	}, []);
 
 	const onHeroPointerEnter = useCallback(() => {
 		isPointerOverRef.current = true;
@@ -234,9 +189,6 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 
 	useGSAP(
 		() => {
-			// Wait for the deferred GSAP ready flag before touching the DOM.
-			if (!isGsapReady) return;
-
 			registerGsapPlugins();
 			introCompleteRef.current = false;
 
@@ -292,6 +244,8 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 						actions,
 					];
 
+			gsap.set(introTargets, { opacity: 0, y: prefersReducedMotion ? 16 : 32 });
+
 			gsap.set(letterboxTop, {
 				scaleY: 1,
 				opacity: 1,
@@ -307,6 +261,10 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 				autoAlpha: 1,
 			});
 
+			if (heroMedia) {
+				gsap.set(heroMedia, { opacity: 0 });
+			}
+
 			const hideLetterboxes = () => {
 				gsap.set([letterboxTop, letterboxBottom], {
 					autoAlpha: 0,
@@ -314,18 +272,36 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 				});
 			};
 
-			const revealDuration = 0.9;
+			const revealDuration = 2.5;
+			const sceneFadeDuration = 2.8;
+			const copyRevealAt = revealDuration * 0.72;
 
-			const introTimeline = gsap.timeline({ delay: 0.05 });
+			const introTimeline = gsap.timeline({ delay: 0.15 });
 
 			if (prefersReducedMotion) {
 				introTimeline
 					.to([letterboxTop, letterboxBottom], {
 						opacity: 0,
-						duration: 0.5,
+						duration: 0.8,
 						ease: "power2.inOut",
 					})
-					.call(hideLetterboxes);
+					.to(
+						heroMedia,
+						{
+							opacity: 1,
+							duration: 0.8,
+							ease: "power2.inOut",
+						},
+						"<0.15",
+					)
+					.call(hideLetterboxes)
+					.to(introTargets, {
+						opacity: 1,
+						y: 0,
+						duration: 0.7,
+						stagger: 0.08,
+						ease: "power3.out",
+					});
 			} else {
 				introTimeline
 					.add("reveal")
@@ -338,8 +314,75 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 							ease: "power3.inOut",
 						},
 						"reveal",
+					);
+
+				if (heroMedia) {
+					introTimeline.to(
+						heroMedia,
+						{
+							opacity: 1,
+							duration: sceneFadeDuration,
+							ease: "power2.inOut",
+						},
+						"reveal+=0.12",
+					);
+				}
+
+				introTimeline.call(hideLetterboxes, undefined, `reveal+=${revealDuration - 0.08}`);
+
+				introTimeline
+					.to(
+						label,
+						{
+							opacity: 1,
+							y: 0,
+							duration: 0.9,
+							ease: "power3.out",
+						},
+						`reveal+=${copyRevealAt}`,
 					)
-					.call(hideLetterboxes, undefined, `reveal+=${revealDuration - 0.05}`);
+					.to(
+						splitLine1?.chars ?? titleLine1,
+						{
+							opacity: 1,
+							y: 0,
+							duration: 0.75,
+							stagger: 0.028,
+							ease: "power3.out",
+						},
+						"-=0.45",
+					)
+					.to(
+						splitLine2?.chars ?? titleLine2,
+						{
+							opacity: 1,
+							y: 0,
+							duration: 0.75,
+							stagger: 0.028,
+							ease: "power3.out",
+						},
+						"-=0.55",
+					)
+					.to(
+						descriptionEl,
+						{
+							opacity: 1,
+							y: 0,
+							duration: 0.8,
+							ease: "power3.out",
+						},
+						"-=0.45",
+					)
+					.to(
+						actions,
+						{
+							opacity: 1,
+							y: 0,
+							duration: 0.8,
+							ease: "power3.out",
+						},
+						"-=0.55",
+					);
 			}
 
 			introTimeline.eventCallback("onComplete", () => {
@@ -353,6 +396,7 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 						end: `+=${LANDING_HERO_SCROLL_HEIGHT_VH}%`,
 						pin: pin,
 						scrub: 0.85,
+						anticipatePin: 1,
 						onUpdate: (self) => {
 							scrollProgressRef.current = self.progress;
 
@@ -413,7 +457,7 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 		},
 		{
 			scope: sectionRef,
-			dependencies: [prefersReducedMotion, useWebGL, isGsapReady],
+			dependencies: [prefersReducedMotion, useWebGL],
 		},
 	);
 
@@ -442,16 +486,8 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 						/>
 					)}
 
-					<div ref={canvasWrapRef} className="absolute inset-0">
-						<Image
-							src={MEDIA_PATHS.images.landing.heroGalleryPoster}
-							alt={t("titleLine1")}
-							fill
-							priority
-							sizes="100vw"
-							className="object-cover object-center"
-						/>
-						{useWebGL && shouldLoad3D && (
+					{useWebGL ? (
+						<div ref={canvasWrapRef} className="absolute inset-0 overflow-hidden opacity-0">
 							<PorcelainGalleryScene
 								scrollProgressRef={scrollProgressRef}
 								mouseRef={mouseRef}
@@ -459,8 +495,19 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 								isActive={isSceneActive}
 								className="absolute inset-0"
 							/>
-						)}
-					</div>
+						</div>
+					) : (
+						<div ref={canvasWrapRef} className="absolute inset-0 opacity-0">
+							<Image
+								src={MEDIA_PATHS.images.landing.heroGalleryPoster}
+								alt={t("titleLine1")}
+								fill
+								priority
+								sizes="100vw"
+								className="object-cover object-center"
+							/>
+						</div>
+					)}
 
 					{!useWebGL && (
 						<div

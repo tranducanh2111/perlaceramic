@@ -18,11 +18,12 @@ export interface LandingHeroDesktopEnhancementsProps {
 	resetAmbienceRef: RefObject<() => void>;
 	isSceneActive: boolean;
 	onSceneActiveChange: (isActive: boolean) => void;
+	onGalleryReady: () => void;
 }
 
 /**
- * Desktop WebGL gallery + scroll scrub — mounts immediately with the hero.
- * Chunk is still code-split from mobile; textures are preloaded via PageMediaPreload.
+ * Desktop WebGL gallery + scroll scrub — mounts with the hero.
+ * Signals `onGalleryReady` after the first painted frame so the letterbox opens onto 3D only.
  */
 export function LandingHeroDesktopEnhancements({
 	sectionRef,
@@ -37,6 +38,7 @@ export function LandingHeroDesktopEnhancements({
 	resetAmbienceRef,
 	isSceneActive,
 	onSceneActiveChange,
+	onGalleryReady,
 }: LandingHeroDesktopEnhancementsProps) {
 	useGsapLenisSync(true);
 
@@ -145,6 +147,7 @@ export function LandingHeroDesktopEnhancements({
 			mouseRef={mouseRef}
 			isPointerOverRef={isPointerOverRef}
 			isActive={isSceneActive}
+			onFirstFrame={onGalleryReady}
 			className="absolute inset-0"
 		/>
 	);

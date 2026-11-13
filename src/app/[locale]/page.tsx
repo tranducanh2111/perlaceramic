@@ -104,11 +104,14 @@ export default async function HomePage({ params }: HomePageProps) {
 
 	return (
 		<main className="relative" style={{ position: "relative" }}>
-			{/* Gallery poster = LCP; desktop also preloads WebGL slab textures. */}
-			<PageMediaPreload imagePaths={[MEDIA_PATHS.images.landing.heroGalleryPoster]} />
+			{/*
+			 * Mobile: gallery poster for LCP.
+			 * Desktop: preload slab textures only — no poster (desktop hero is WebGL-only).
+			 */}
 			<PageMediaPreload
 				desktopOnly
 				imagePaths={PORCELAIN_SLAB_TEXTURES.map((path) => encodePublicAssetPath(path))}
+				mobileImagePaths={[MEDIA_PATHS.images.landing.heroGalleryPoster]}
 			/>
 			<script
 				type="application/ld+json"

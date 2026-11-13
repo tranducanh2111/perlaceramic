@@ -250,6 +250,8 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 	const introCompleteRef = useRef(false);
 	const resetAmbienceRef = useRef<() => void>(() => undefined);
 	const [isSceneActive, setIsSceneActive] = useState(true);
+	/** False until first WebGL frame (desktop) or immediately for poster-only viewports. */
+	const [isRevealReady, setIsRevealReady] = useState(false);
 	const isClient = useIsClient();
 	const isCursorAmbienceReady = isClient && enableCursorAmbience;
 
@@ -268,8 +270,29 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 		resetAmbienceRef.current = resetAmbience;
 	}, [resetAmbience]);
 
-	/** Mark CSS intro complete for cursor ambience; match prior GSAP timeline length. */
+	/** Poster-only viewports can open immediately; desktop waits on WebGL. */
 	useEffect(() => {
+		if (!useDesktopMotion) {
+			setIsRevealReady(true);
+		}
+	}, [useDesktopMotion]);
+
+	/** Never leave users behind a closed letterbox if WebGL stalls. */
+	useEffect(() => {
+		if (!useDesktopMotion || isRevealReady) {
+			return;
+		}
+		const timeoutId = window.setTimeout(() => {
+			setIsRevealReady(true);
+		}, 4500);
+		return () => window.clearTimeout(timeoutId);
+	}, [useDesktopMotion, isRevealReady]);
+
+	/** Mark CSS intro complete for cursor ambience after reveal finishes. */
+	useEffect(() => {
+		if (!isRevealReady) {
+			return;
+		}
 		const timeoutId = window.setTimeout(
 			() => {
 				introCompleteRef.current = true;
@@ -277,15 +300,19 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 			prefersReducedMotion ? 900 : 2800,
 		);
 		return () => window.clearTimeout(timeoutId);
-	}, [prefersReducedMotion]);
+	}, [isRevealReady, prefersReducedMotion]);
 
-	/** Warm the desktop WebGL/GSAP chunk as soon as we know this viewport needs it. */
+	/** Warm the desktop WebGL/GSAP chunk immediately. */
 	useEffect(() => {
 		if (!useDesktopMotion) {
 			return;
 		}
 		void import("@/page-sections/landing/LandingHeroDesktopEnhancements");
 	}, [useDesktopMotion]);
+
+	const handleGalleryReady = useCallback(() => {
+		setIsRevealReady(true);
+	}, []);
 
 	const onHeroPointerEnter = useCallback(() => {
 		isPointerOverRef.current = true;
@@ -315,15 +342,18 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 	return (
 		<section
 			ref={sectionRef}
-			className="bg-sapphire-deep relative isolate w-full overflow-hidden"
+			className={cn(
+				"bg-sapphire-deep relative isolate w-full overflow-hidden",
+				isRevealReady && "landing-hero--reveal",
+			)}
 			style={{ height: useDesktopMotion ? `${LANDING_HERO_SCROLL_HEIGHT_VH}vh` : "100dvh" }}
 			aria-label={`${t("titleLine1")} ${t("titleLine2")}`}
+			aria-busy={useDesktopMotion && !isRevealReady}
 		>
 			<div
 				ref={pinRef}
 				className={cn(
 					"relative h-[100dvh] w-full overflow-hidden lg:h-screen",
-					// Sticky approximates the GSAP pin before the desktop chunk loads.
 					useDesktopMotion && "sticky top-0 z-[1]",
 				)}
 				onPointerEnter={isDesktopHero ? onHeroPointerEnter : undefined}
@@ -338,15 +368,20 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 							!prefersReducedMotion && "landing-hero-media--zoom",
 						)}
 					>
-						{/* Poster only for LCP / mobile — desktop WebGL mounts with the hero, not after. */}
-						<Image
-							src={MEDIA_PATHS.images.landing.heroGalleryPoster}
-							alt={t("titleLine1")}
-							fill
-							priority
-							sizes="100vw"
-							className="object-cover object-center"
-						/>
+						{/*
+						 * One medium only: desktop = WebGL (no poster).
+						 * Poster is mobile / reduced-motion only — never a desktop handoff.
+						 */}
+						{!useDesktopMotion && (
+							<Image
+								src={MEDIA_PATHS.images.landing.heroGalleryPoster}
+								alt={t("titleLine1")}
+								fill
+								priority
+								sizes="100vw"
+								className="object-cover object-center"
+							/>
+						)}
 						{useDesktopMotion && (
 							<LandingHeroDesktopEnhancements
 								sectionRef={sectionRef}
@@ -361,6 +396,7 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 								resetAmbienceRef={resetAmbienceRef}
 								isSceneActive={isSceneActive}
 								onSceneActiveChange={setIsSceneActive}
+								onGalleryReady={handleGalleryReady}
 							/>
 						)}
 					</div>

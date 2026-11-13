@@ -746,10 +746,18 @@ h6 {
 	}
 }
 
-/* Cinematic letterbox — mirrors prior GSAP power3.inOut ~2.35s open */
+/*
+ * Letterbox stays closed until `.landing-hero--reveal` (first WebGL frame on desktop).
+ * Prevents poster→3D glitch: sapphire hold, then one continuous gallery reveal.
+ */
 .landing-hero-letterbox {
-	animation: landing-hero-letterbox-open 2.35s cubic-bezier(0.76, 0, 0.24, 1) 0.12s forwards;
+	transform: scaleY(1);
+	opacity: 1;
 	will-change: transform, opacity;
+}
+
+.landing-hero--reveal .landing-hero-letterbox {
+	animation: landing-hero-letterbox-open 2.35s cubic-bezier(0.76, 0, 0.24, 1) 0.12s forwards;
 }
 
 @keyframes landing-hero-letterbox-open {
@@ -766,6 +774,9 @@ h6 {
 
 .landing-hero-media--zoom {
 	transform: scale(1.04);
+}
+
+.landing-hero--reveal .landing-hero-media--zoom {
 	animation: landing-hero-media-settle 2.75s cubic-bezier(0.22, 1, 0.36, 1) 0.12s forwards;
 }
 
@@ -775,13 +786,16 @@ h6 {
 	}
 }
 
-.landing-hero-char {
+.landing-hero-char,
+.landing-hero-rise {
 	transform: translateY(36px);
+}
+
+.landing-hero--reveal .landing-hero-char {
 	animation: landing-hero-rise 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
-.landing-hero-rise {
-	transform: translateY(36px);
+.landing-hero--reveal .landing-hero-rise {
 	animation: landing-hero-rise 0.85s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
@@ -808,12 +822,13 @@ h6 {
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.landing-hero-letterbox {
+	.landing-hero--reveal .landing-hero-letterbox {
 		animation-duration: 0.9s;
 		animation-delay: 0s;
 	}
 
-	.landing-hero-media--zoom {
+	.landing-hero-media--zoom,
+	.landing-hero--reveal .landing-hero-media--zoom {
 		transform: none;
 		animation: none;
 	}
@@ -821,6 +836,10 @@ h6 {
 	.landing-hero-char,
 	.landing-hero-rise {
 		transform: translateY(14px);
+	}
+
+	.landing-hero--reveal .landing-hero-char,
+	.landing-hero--reveal .landing-hero-rise {
 		animation-duration: 0.7s;
 	}
 

@@ -25,6 +25,8 @@ export interface PorcelainGallerySceneProps {
 	isPointerOverRef?: React.RefObject<boolean>;
 	isActive?: boolean;
 	className?: string;
+	/** Fires once after the first rendered WebGL frame (textures bound). */
+	onFirstFrame?: () => void;
 }
 
 interface SlabProps {
@@ -277,14 +279,30 @@ function CameraRig({
 	return null;
 }
 
+function FirstFrameSignal({ onFirstFrame }: { onFirstFrame?: () => void }) {
+	const hasSignaledRef = useRef(false);
+
+	useFrame(() => {
+		if (hasSignaledRef.current || !onFirstFrame) {
+			return;
+		}
+		hasSignaledRef.current = true;
+		onFirstFrame();
+	});
+
+	return null;
+}
+
 function GalleryScene({
 	scrollProgressRef,
 	mouseRef,
 	isPointerOverRef,
+	onFirstFrame,
 }: {
 	scrollProgressRef: React.RefObject<number>;
 	mouseRef: React.RefObject<{ x: number; y: number }>;
 	isPointerOverRef?: React.RefObject<boolean>;
+	onFirstFrame?: () => void;
 }) {
 	const encodedTextureUrls = useMemo(
 		() => PORCELAIN_SLAB_TEXTURES.map((path) => encodePublicAssetPath(path)),
@@ -299,6 +317,7 @@ function GalleryScene({
 
 	return (
 		<>
+			<FirstFrameSignal onFirstFrame={onFirstFrame} />
 			<color attach="background" args={["#071A2B"]} />
 			<ambientLight intensity={0.32} color="#E8EEF4" />
 			<directionalLight position={[4, 6, 5]} intensity={0.6} color="#F4F4F6" />
@@ -336,6 +355,7 @@ export function PorcelainGalleryScene({
 	isPointerOverRef,
 	isActive = true,
 	className,
+	onFirstFrame,
 }: PorcelainGallerySceneProps) {
 	return (
 		<div className={className ?? "absolute inset-0 z-0"} aria-hidden="true">
@@ -357,6 +377,7 @@ export function PorcelainGalleryScene({
 						scrollProgressRef={scrollProgressRef}
 						mouseRef={mouseRef}
 						isPointerOverRef={isPointerOverRef}
+						onFirstFrame={onFirstFrame}
 					/>
 				</Suspense>
 			</Canvas>

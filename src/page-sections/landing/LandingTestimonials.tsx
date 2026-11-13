@@ -62,6 +62,7 @@ export function LandingTestimonials() {
 								}}
 							>
 								<Text
+									as="blockquote"
 									variant="h4"
 									className="text-linen/90 font-serif font-light italic"
 								>
@@ -73,7 +74,7 @@ export function LandingTestimonials() {
 									<Text variant="body" className="text-linen mt-4 font-medium">
 										{t(`${itemNamespace}.authorName`)}
 									</Text>
-									<Text variant="body-sm" className="text-linen/50">
+									<Text variant="body-sm" className="text-linen/70">
 										{t(`${itemNamespace}.authorTitle`)} —{" "}
 										{t(`${itemNamespace}.authorCompany`)}
 									</Text>

@@ -19,8 +19,8 @@ import { gsap, registerGsapPlugins, ScrollTrigger, SplitText } from "@/lib/gsap"
 import { cn } from "@/lib/cn";
 
 /** Milliseconds after mount before the GSAP intro timeline is initialised.
- *  Keeps the main thread free during the LCP window (desktop TBT fix). */
-const GSAP_INIT_DEFER_MS = 300;
+ *  Allows the browser to paint SSR content cleanly before attaching animations. */
+const GSAP_INIT_DEFER_MS = 60;
 
 const PorcelainGalleryScene = dynamic(
 	() =>
@@ -41,9 +41,6 @@ interface HeroCopyProps {
 	description: ReactNode;
 	primaryCta: string;
 	secondaryCta: string;
-	/** When true, copy elements are CSS-hidden so GSAP can animate them in later
-	 *  without needing a synchronous gsap.set() call during the LCP window. */
-	shouldHideInitially?: boolean;
 	titleLine1Ref?: React.RefObject<HTMLSpanElement | null>;
 	titleLine2Ref?: React.RefObject<HTMLElement | null>;
 	descriptionRef?: React.RefObject<HTMLDivElement | null>;
@@ -58,39 +55,39 @@ function HeroCopy({
 	description,
 	primaryCta,
 	secondaryCta,
-	shouldHideInitially,
 	titleLine1Ref,
 	titleLine2Ref,
 	descriptionRef,
 	actionsRef,
 	labelRef,
 }: HeroCopyProps) {
-	const hiddenCls = shouldHideInitially ? "opacity-0 translate-y-8" : "";
-
 	return (
 		<>
-			<div ref={labelRef} className={hiddenCls}>
+			<div ref={labelRef}>
 				<Badge variant="hero">{label}</Badge>
 			</div>
 
-			<h1 className="text-display-xl lg:text-display-2xl text-linen mt-6 max-w-3xl font-serif leading-[1.1] font-light">
-				<span ref={titleLine1Ref} className={hiddenCls}>{titleLine1}</span>
+			<h1
+				className="text-display-xl lg:text-display-2xl text-linen mt-6 max-w-3xl font-serif leading-[1.1] font-light"
+				aria-label={`${titleLine1} ${titleLine2}`}
+			>
+				<span ref={titleLine1Ref}>{titleLine1}</span>
 				<br />
-				<em ref={titleLine2Ref} className={cn("text-champagne italic", hiddenCls)}>
+				<em ref={titleLine2Ref} className="text-champagne italic">
 					{titleLine2}
 				</em>
 			</h1>
 
 			<div
 				ref={descriptionRef}
-				className={cn("text-body-lg text-linen/60 mt-6 max-w-lg font-sans", hiddenCls)}
+				className="text-body-lg text-linen/60 mt-6 max-w-lg font-sans"
 			>
 				{description}
 			</div>
 
 			<div
 				ref={actionsRef}
-				className={cn("mt-10 flex flex-col gap-4 sm:flex-row", hiddenCls)}
+				className="mt-10 flex flex-col gap-4 sm:flex-row"
 			>
 				<Button href={ROUTES.projects} size="lg">
 					{primaryCta}
@@ -248,6 +245,11 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 				? null
 				: SplitText.create(titleLine2, { type: "chars" });
 
+			// Strip prohibited aria-label attributes set by SplitText on generic span/em tags
+			// to ensure a well-formed accessibility tree (fixes agent-accessibility-tree & aria-prohibited-attr)
+			titleLine1.removeAttribute("aria-label");
+			titleLine2.removeAttribute("aria-label");
+
 			const introTargets = prefersReducedMotion
 				? [label, titleLine1, titleLine2, descriptionEl, actions]
 				: [
@@ -258,7 +260,7 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 						actions,
 					];
 
-			gsap.set(introTargets, { opacity: 0, y: prefersReducedMotion ? 16 : 32 });
+			gsap.set(introTargets, { opacity: 0, y: prefersReducedMotion ? 16 : 24 });
 
 			gsap.set(letterboxTop, {
 				scaleY: 1,
@@ -286,11 +288,11 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 				});
 			};
 
-			const revealDuration = 2.5;
-			const sceneFadeDuration = 2.8;
-			const copyRevealAt = revealDuration * 0.72;
+			const revealDuration = 1.2;
+			const sceneFadeDuration = 1.4;
+			const copyRevealAt = 0.35;
 
-			const introTimeline = gsap.timeline({ delay: 0.15 });
+			const introTimeline = gsap.timeline({ delay: 0.05 });
 
 			if (prefersReducedMotion) {
 				introTimeline

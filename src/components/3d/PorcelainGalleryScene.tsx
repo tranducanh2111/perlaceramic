@@ -304,12 +304,22 @@ export function PorcelainGalleryScene({
 	const [mounted, setMounted] = useState(false);
 
 	useEffect(() => {
-		// Delay Three.js / WebGL initialisation until after the LCP window to
-		// avoid competing with critical rendering during page load.
-		// 800 ms gives the browser enough time to paint the above-fold content
-		// and reach an idle state before we start the GPU-heavy canvas.
-		const id = setTimeout(() => setMounted(true), 800);
-		return () => clearTimeout(id);
+		// Delay Three.js / WebGL initialisation until the main thread is idle
+		// so it never competes with the critical initial paint or LCP.
+		if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+			const idleId = (window as unknown as { requestIdleCallback: (cb: () => void, opts?: { timeout: number }) => number }).requestIdleCallback(
+				() => setMounted(true),
+				{ timeout: 1200 },
+			);
+			return () => {
+				if ("cancelIdleCallback" in window) {
+					(window as unknown as { cancelIdleCallback: (id: number) => void }).cancelIdleCallback(idleId);
+				}
+			};
+		}
+
+		const timeoutId = setTimeout(() => setMounted(true), 600);
+		return () => clearTimeout(timeoutId);
 	}, []);
 
 	if (!mounted) {

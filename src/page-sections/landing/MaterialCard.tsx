@@ -60,7 +60,7 @@ export function MaterialCard({ category }: MaterialCardProps) {
 					<Text variant="label" className="text-champagne tracking-widest uppercase">
 						{category.sizes.join(" · ")}
 					</Text>
-					<Text variant="h4" className="text-linen mt-3">
+					<Text as="h3" variant="h4" className="text-linen mt-3">
 						{t(`categories.${category.id}.name`)}
 					</Text>
 					<Text variant="body-sm" className="text-linen/55 mt-2">

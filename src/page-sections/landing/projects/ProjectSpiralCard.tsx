@@ -97,6 +97,7 @@ export function ProjectCardVisual({
 						)}
 					>
 						<Text
+							as="h3"
 							variant={spiralUi ? spiralUi.titleVariant : "h4"}
 							className={cn(
 								"line-clamp-2 text-[#F4F4F6] [text-shadow:0_1px_2px_rgba(7,26,43,0.95),0_2px_24px_rgba(7,26,43,0.7)]",

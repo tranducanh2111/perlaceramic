@@ -264,14 +264,14 @@ function CameraRig({
 		const isPointerOver = isPointerOverRef?.current ?? false;
 		const lockViewForCursorLight = isPointerOver && progress < 0.08;
 
-		const targetZ = THREE.MathUtils.lerp(6.8, 2.1, progress);
-		const targetX = lockViewForCursorLight ? 0 : mouse.x * 0.42;
-		const targetY = lockViewForCursorLight ? 0 : mouse.y * 0.24;
+		const targetZ = THREE.MathUtils.lerp(6.55, 2.05, progress);
+		const targetX = lockViewForCursorLight ? 0.55 : 0.55 + mouse.x * 0.38;
+		const targetY = lockViewForCursorLight ? 0.05 : 0.05 + mouse.y * 0.22;
 
 		camera.position.x = THREE.MathUtils.damp(camera.position.x, targetX, 3.5, delta);
 		camera.position.y = THREE.MathUtils.damp(camera.position.y, targetY, 3.5, delta);
 		camera.position.z = THREE.MathUtils.damp(camera.position.z, targetZ, 3.5, delta);
-		camera.lookAt(0, 0, -0.2);
+		camera.lookAt(0.7, 0.05, -0.15);
 	});
 
 	return null;
@@ -357,7 +357,7 @@ export function PorcelainGalleryScene({
 	return (
 		<div className={className ?? "absolute inset-0 z-0"} aria-hidden="true">
 			<Canvas
-				camera={{ position: [0, 0, 6.8], fov: 42, near: 0.1, far: 40 }}
+				camera={{ position: [0.55, 0.05, 6.55], fov: 40, near: 0.1, far: 40 }}
 				dpr={1}
 				gl={{
 					alpha: false,

@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { useGSAP } from "@gsap/react";
-import { Badge, Button } from "@/components/ui";
+import { Button } from "@/components/ui";
 import { DESKTOP_LAYOUT_QUERY } from "@/constants/breakpoints";
 import { LANDING_HERO_SCROLL_HEIGHT_VH } from "@/constants/landing-hero";
 import { MEDIA_PATHS } from "@/constants/media";
@@ -18,10 +18,10 @@ import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
 import { gsap, registerGsapPlugins, ScrollTrigger, SplitText } from "@/lib/gsap";
 import { cn } from "@/lib/cn";
 
-/**
- * WebGL must not boot during Lighthouse's TBT window.
- * Mount only after real user input — poster + letterbox carry the design until then.
- */
+/** Boot WebGL after first paint — idle or first input — so the 3D gallery is the hero, not a video. */
+const WEBGL_IDLE_TIMEOUT_MS = 1100;
+const GSAP_INIT_DEFER_MS = 60;
+
 const PorcelainGalleryScene = dynamic(
 	() =>
 		import("@/components/3d/PorcelainGalleryScene").then((module) => ({
@@ -32,6 +32,8 @@ const PorcelainGalleryScene = dynamic(
 
 function scheduleHeroWebGLMount(onMount: () => void): () => void {
 	let hasMounted = false;
+	let idleCallbackId: number | null = null;
+	let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
 	const cleanup = () => {
 		window.removeEventListener("pointerdown", runMount);
@@ -40,6 +42,12 @@ function scheduleHeroWebGLMount(onMount: () => void): () => void {
 		window.removeEventListener("keydown", runMount);
 		window.removeEventListener("touchstart", runMount);
 		window.removeEventListener("wheel", runMount);
+		if (idleCallbackId !== null && typeof window.cancelIdleCallback === "function") {
+			window.cancelIdleCallback(idleCallbackId);
+		}
+		if (timeoutId !== null) {
+			clearTimeout(timeoutId);
+		}
 	};
 
 	const runMount = () => {
@@ -58,15 +66,39 @@ function scheduleHeroWebGLMount(onMount: () => void): () => void {
 	window.addEventListener("touchstart", runMount, { passive: true });
 	window.addEventListener("wheel", runMount, { passive: true });
 
+	if (typeof window.requestIdleCallback === "function") {
+		idleCallbackId = window.requestIdleCallback(runMount, {
+			timeout: WEBGL_IDLE_TIMEOUT_MS,
+		});
+	} else {
+		timeoutId = setTimeout(runMount, WEBGL_IDLE_TIMEOUT_MS);
+	}
+
 	return cleanup;
 }
-
-/** Short paint-first defer so letterbox/copy intro still feels cinematic. */
-const GSAP_INIT_DEFER_MS = 60;
 
 function scheduleGsapReady(onReady: () => void): () => void {
 	const timeoutId = setTimeout(onReady, GSAP_INIT_DEFER_MS);
 	return () => clearTimeout(timeoutId);
+}
+
+function ArrowGlyph({ className }: { className?: string }) {
+	return (
+		<svg
+			viewBox="0 0 16 16"
+			fill="none"
+			aria-hidden="true"
+			className={cn("h-3.5 w-3.5", className)}
+		>
+			<path
+				d="M3 8h10M9 4l4 4-4 4"
+				stroke="currentColor"
+				strokeWidth="1.25"
+				strokeLinecap="round"
+				strokeLinejoin="round"
+			/>
+		</svg>
+	);
 }
 
 interface LandingHeroImmersiveProps {
@@ -74,72 +106,160 @@ interface LandingHeroImmersiveProps {
 }
 
 interface HeroCopyProps {
-	label: string;
+	brandMark: string;
+	atelier: string;
+	galleryMetaLine1: string;
+	galleryMetaLine2: string;
+	chapterIndex: string;
 	titleLine1: string;
 	titleLine2: string;
 	description: ReactNode;
 	primaryCta: string;
 	secondaryCta: string;
+	scrollLabel: string;
+	railRef?: React.RefObject<HTMLDivElement | null>;
+	atelierRef?: React.RefObject<HTMLParagraphElement | null>;
 	titleLine1Ref?: React.RefObject<HTMLSpanElement | null>;
 	titleLine2Ref?: React.RefObject<HTMLElement | null>;
 	descriptionRef?: React.RefObject<HTMLDivElement | null>;
 	actionsRef?: React.RefObject<HTMLDivElement | null>;
-	labelRef?: React.RefObject<HTMLDivElement | null>;
+	scrollRef?: React.RefObject<HTMLDivElement | null>;
 }
 
-function HeroCopy({
-	label,
+/** Asymmetrical atelier composition — brand lives in the rail + display type, never a kicker. */
+function HeroAtelierCopy({
+	brandMark,
+	atelier,
+	galleryMetaLine1,
+	galleryMetaLine2,
+	chapterIndex,
 	titleLine1,
 	titleLine2,
 	description,
 	primaryCta,
 	secondaryCta,
+	scrollLabel,
+	railRef,
+	atelierRef,
 	titleLine1Ref,
 	titleLine2Ref,
 	descriptionRef,
 	actionsRef,
-	labelRef,
+	scrollRef,
 }: HeroCopyProps) {
 	return (
-		<>
-			<div ref={labelRef}>
-				<Badge variant="hero">{label}</Badge>
+		<div className="relative flex h-full min-h-[100dvh] w-full flex-col justify-between px-5 py-24 sm:px-8 sm:py-28 lg:px-14 lg:py-16 xl:px-20">
+			{/* Top meta row */}
+			<div className="flex items-start justify-between gap-6">
+				<div ref={railRef} className="flex items-center gap-4">
+					<span className="font-serif text-[1.65rem] leading-none tracking-[0.08em] text-champagne uppercase sm:text-[1.85rem]">
+						{brandMark}
+					</span>
+					<span className="bg-champagne/50 hidden h-px w-10 sm:block" aria-hidden="true" />
+					<p
+						ref={atelierRef}
+						className="text-footnote text-linen/45 hidden tracking-[0.22em] uppercase sm:block"
+					>
+						{atelier}
+					</p>
+				</div>
+				<p
+					className="text-footnote text-linen/35 max-w-[9rem] text-right tracking-[0.18em] uppercase"
+					aria-hidden="true"
+				>
+					{galleryMetaLine1}
+					<br />
+					{galleryMetaLine2}
+				</p>
 			</div>
 
-			<h1
-				className="text-display-xl lg:text-display-2xl text-linen mt-6 max-w-3xl font-serif leading-[1.1] font-light"
-				aria-label={`${titleLine1} ${titleLine2}`}
-			>
-				<span ref={titleLine1Ref}>{titleLine1}</span>
-				<br />
-				<em ref={titleLine2Ref} className="text-champagne italic">
-					{titleLine2}
-				</em>
-			</h1>
+			{/* Primary stage — left-weighted editorial block */}
+			<div className="relative z-10 flex max-w-3xl flex-col items-start text-left lg:max-w-[46rem]">
+				<h1
+					className="text-display-xl xl:text-display-2xl text-linen font-serif leading-[0.95] font-light tracking-[-0.03em]"
+					aria-label={`${titleLine1} ${titleLine2}`}
+				>
+					<span ref={titleLine1Ref} className="block">
+						{titleLine1}
+					</span>
+					<em
+						ref={titleLine2Ref}
+						className="text-champagne mt-1 block font-serif italic"
+					>
+						{titleLine2}
+					</em>
+				</h1>
 
+				<div
+					ref={descriptionRef}
+					className="text-body-lg text-linen/68 mt-8 max-w-md font-sans leading-relaxed sm:mt-10"
+				>
+					{description}
+				</div>
+
+				<div
+					ref={actionsRef}
+					className="mt-10 flex w-full flex-col gap-3 sm:mt-12 sm:w-auto sm:flex-row sm:items-center sm:gap-4"
+				>
+					<Button
+						href={ROUTES.projects}
+						size="lg"
+						className="group inline-flex items-center gap-3 !pr-2.5"
+					>
+						<span>{primaryCta}</span>
+						<span className="bg-sapphire-deep/12 text-sapphire-deep flex h-9 w-9 items-center justify-center rounded-full transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:translate-x-0.5 group-hover:-translate-y-px group-active:scale-95">
+							<ArrowGlyph />
+						</span>
+					</Button>
+					<Button
+						href={ROUTES.products}
+						variant="secondary"
+						size="lg"
+						className="border-linen/18 hover:border-champagne/60"
+					>
+						{secondaryCta}
+					</Button>
+				</div>
+			</div>
+
+			{/* Bottom scroll cue */}
 			<div
-				ref={descriptionRef}
-				className="text-body-lg text-linen/60 mt-6 max-w-lg font-sans"
+				ref={scrollRef}
+				className="flex items-end justify-between gap-6"
 			>
-				{description}
+				<div className="flex items-center gap-4">
+					<span className="bg-champagne/70 relative h-12 w-px overflow-hidden">
+						<span className="landing-hero-scroll-pulse bg-linen absolute inset-x-0 top-0 h-1/2" />
+					</span>
+					<span className="text-footnote text-linen/50 tracking-[0.28em] uppercase">
+						{scrollLabel}
+					</span>
+				</div>
+				<span
+					className="text-footnote text-linen/30 hidden tracking-[0.2em] tabular-nums uppercase md:block"
+					aria-hidden="true"
+				>
+					{chapterIndex}
+				</span>
 			</div>
-
-			<div
-				ref={actionsRef}
-				className="mt-10 flex flex-col gap-4 sm:flex-row"
-			>
-				<Button href={ROUTES.projects} size="lg">
-					{primaryCta}
-				</Button>
-				<Button href={ROUTES.products} variant="secondary" size="lg">
-					{secondaryCta}
-				</Button>
-			</div>
-		</>
+		</div>
 	);
 }
 
-/** Immersive 3D porcelain gallery hero with GSAP intro and scroll-pinned outro. */
+function ArchitecturalFrame() {
+	const corner =
+		"pointer-events-none absolute h-8 w-8 border-champagne/35 sm:h-10 sm:w-10";
+	return (
+		<div className="pointer-events-none absolute inset-5 z-[15] sm:inset-7 lg:inset-10" aria-hidden="true">
+			<span className={cn(corner, "top-0 left-0 border-t border-l")} />
+			<span className={cn(corner, "top-0 right-0 border-t border-r")} />
+			<span className={cn(corner, "bottom-0 left-0 border-b border-l")} />
+			<span className={cn(corner, "right-0 bottom-0 border-r border-b")} />
+		</div>
+	);
+}
+
+/** Immersive 3D porcelain gallery hero — atelier editorial chrome over WebGL. */
 export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps) {
 	const t = useTranslations("landing.hero");
 	const prefersReducedMotion = usePrefersReducedMotion();
@@ -158,11 +278,13 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 	const backdropRef = useRef<HTMLDivElement>(null);
 	const canvasWrapRef = useRef<HTMLDivElement>(null);
 	const cursorGlowRef = useRef<HTMLDivElement>(null);
-	const labelRef = useRef<HTMLDivElement>(null);
+	const railRef = useRef<HTMLDivElement>(null);
+	const atelierRef = useRef<HTMLParagraphElement>(null);
 	const titleLine1Ref = useRef<HTMLSpanElement>(null);
 	const titleLine2Ref = useRef<HTMLElement>(null);
 	const descriptionRef = useRef<HTMLDivElement>(null);
 	const actionsRef = useRef<HTMLDivElement>(null);
+	const scrollRef = useRef<HTMLDivElement>(null);
 
 	const scrollProgressRef = useRef(0);
 	const mouseRef = useRef({ x: 0, y: 0 });
@@ -258,12 +380,13 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 			const content = contentRef.current;
 			const backdrop = backdropRef.current;
 			const canvasWrap = canvasWrapRef.current;
-			const heroMedia = canvasWrap;
 			const titleLine1 = titleLine1Ref.current;
 			const titleLine2 = titleLine2Ref.current;
 			const descriptionEl = descriptionRef.current;
 			const actions = actionsRef.current;
-			const label = labelRef.current;
+			const rail = railRef.current;
+			const atelier = atelierRef.current;
+			const scrollCue = scrollRef.current;
 
 			if (
 				!section ||
@@ -275,7 +398,8 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 				!titleLine2 ||
 				!descriptionEl ||
 				!actions ||
-				!label
+				!rail ||
+				!scrollCue
 			) {
 				return;
 			}
@@ -287,25 +411,26 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 				? null
 				: SplitText.create(titleLine2, { type: "chars" });
 
-			// Strip prohibited aria-label attributes set by SplitText on generic span/em tags
-			// to ensure a well-formed accessibility tree (fixes agent-accessibility-tree & aria-prohibited-attr)
 			titleLine1.removeAttribute("aria-label");
 			titleLine2.removeAttribute("aria-label");
 
-			const introTargets = prefersReducedMotion
-				? [label, titleLine1, titleLine2, descriptionEl, actions]
+			const riseTargets = prefersReducedMotion
+				? [rail, atelier, titleLine1, titleLine2, descriptionEl, actions, scrollCue].filter(
+						Boolean,
+					)
 				: [
-						label,
+						rail,
+						atelier,
 						...(splitLine1?.chars ?? []),
 						...(splitLine2?.chars ?? []),
 						descriptionEl,
 						actions,
-					];
+						scrollCue,
+					].filter(Boolean);
 
-			// Keep copy/poster painted for Speed Index — animate rise only, never blank opacity.
-			gsap.set(introTargets, { opacity: 1, y: prefersReducedMotion ? 12 : 28 });
-			if (heroMedia) {
-				gsap.set(heroMedia, { opacity: 1 });
+			gsap.set(riseTargets, { opacity: 1, y: prefersReducedMotion ? 14 : 36 });
+			if (canvasWrap) {
+				gsap.set(canvasWrap, { opacity: 1, scale: prefersReducedMotion ? 1 : 1.04 });
 			}
 
 			gsap.set(letterboxTop, {
@@ -330,86 +455,79 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 				});
 			};
 
-			const revealDuration = 2.5;
-			const copyRevealAt = revealDuration * 0.72;
-			const introTimeline = gsap.timeline({ delay: 0.15 });
+			const revealDuration = prefersReducedMotion ? 0.9 : 2.35;
+			const copyRevealAt = revealDuration * 0.55;
+			const introTimeline = gsap.timeline({ delay: 0.12 });
 
-			if (prefersReducedMotion) {
-				introTimeline
-					.to([letterboxTop, letterboxBottom], {
+			introTimeline
+				.add("reveal")
+				.to(
+					[letterboxTop, letterboxBottom],
+					{
+						scaleY: 0,
 						opacity: 0,
-						duration: 0.8,
-						ease: "power2.inOut",
-					})
-					.call(hideLetterboxes)
-					.to(introTargets, {
-						y: 0,
-						duration: 0.7,
-						stagger: 0.08,
-						ease: "power3.out",
-					});
-			} else {
-				introTimeline
-					.add("reveal")
-					.to(
-						[letterboxTop, letterboxBottom],
-						{
-							scaleY: 0,
-							opacity: 0,
-							duration: revealDuration,
-							ease: "power3.inOut",
-						},
-						"reveal",
-					)
-					.call(hideLetterboxes, undefined, `reveal+=${revealDuration - 0.08}`)
-					.to(
-						label,
-						{
-							y: 0,
-							duration: 0.9,
-							ease: "power3.out",
-						},
-						`reveal+=${copyRevealAt}`,
-					)
-					.to(
-						splitLine1?.chars ?? titleLine1,
-						{
-							y: 0,
-							duration: 0.75,
-							stagger: 0.028,
-							ease: "power3.out",
-						},
-						"-=0.45",
-					)
-					.to(
-						splitLine2?.chars ?? titleLine2,
-						{
-							y: 0,
-							duration: 0.75,
-							stagger: 0.028,
-							ease: "power3.out",
-						},
-						"-=0.55",
-					)
-					.to(
-						descriptionEl,
-						{
-							y: 0,
-							duration: 0.8,
-							ease: "power3.out",
-						},
-						"-=0.45",
-					)
-					.to(
-						actions,
-						{
-							y: 0,
-							duration: 0.8,
-							ease: "power3.out",
-						},
-						"-=0.55",
-					);
+						duration: revealDuration,
+						ease: "power3.inOut",
+					},
+					"reveal",
+				);
+
+			if (canvasWrap && !prefersReducedMotion) {
+				introTimeline.to(
+					canvasWrap,
+					{
+						scale: 1,
+						duration: revealDuration + 0.4,
+						ease: "power2.out",
+					},
+					"reveal",
+				);
 			}
+
+			introTimeline
+				.call(hideLetterboxes, undefined, `reveal+=${revealDuration - 0.06}`)
+				.to(
+					rail,
+					{ y: 0, duration: 0.85, ease: "power3.out" },
+					`reveal+=${copyRevealAt}`,
+				);
+
+			if (atelier) {
+				introTimeline.to(
+					atelier,
+					{ y: 0, duration: 0.85, ease: "power3.out" },
+					"<0.05",
+				);
+			}
+
+			introTimeline
+				.to(
+					splitLine1?.chars ?? titleLine1,
+					{
+						y: 0,
+						duration: 0.8,
+						stagger: prefersReducedMotion ? 0 : 0.026,
+						ease: "power3.out",
+					},
+					"-=0.5",
+				)
+				.to(
+					splitLine2?.chars ?? titleLine2,
+					{
+						y: 0,
+						duration: 0.8,
+						stagger: prefersReducedMotion ? 0 : 0.026,
+						ease: "power3.out",
+					},
+					"-=0.58",
+				)
+				.to(
+					descriptionEl,
+					{ y: 0, duration: 0.75, ease: "power3.out" },
+					"-=0.48",
+				)
+				.to(actions, { y: 0, duration: 0.75, ease: "power3.out" }, "-=0.55")
+				.to(scrollCue, { y: 0, duration: 0.7, ease: "power3.out" }, "-=0.5");
 
 			introTimeline.eventCallback("onComplete", () => {
 				introCompleteRef.current = true;
@@ -437,7 +555,7 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 							}
 
 							setContentOpacity(1 - self.progress * 1.35);
-							setContentY(-self.progress * 72);
+							setContentY(-self.progress * 80);
 
 							const fadeStart = 0.28;
 							const backdropOpacity =
@@ -488,7 +606,7 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 			ref={sectionRef}
 			className="bg-sapphire-deep relative isolate w-full overflow-hidden"
 			style={{ height: useWebGL ? `${LANDING_HERO_SCROLL_HEIGHT_VH}vh` : "100dvh" }}
-			aria-label={t("titleLine1")}
+			aria-label={`${t("titleLine1")} ${t("titleLine2")}`}
 		>
 			<div
 				ref={pinRef}
@@ -501,8 +619,7 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 				onPointerLeave={isDesktopHero ? onHeroPointerLeave : undefined}
 			>
 				<div ref={backdropRef} className="absolute inset-0 z-0">
-					{/* Poster is always painted; WebGL replaces it only after user input. */}
-					<div ref={canvasWrapRef} className="absolute inset-0 overflow-hidden">
+					<div ref={canvasWrapRef} className="absolute inset-0 overflow-hidden will-change-transform">
 						<Image
 							src={MEDIA_PATHS.images.landing.heroGalleryPoster}
 							alt={t("titleLine1")}
@@ -521,15 +638,32 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 							/>
 						)}
 					</div>
+
+					{/* Readable veil — keeps type legible without smothering the gallery */}
+					<div
+						className="pointer-events-none absolute inset-0 bg-gradient-to-r from-sapphire-deep/88 via-sapphire-deep/45 to-sapphire-deep/15 sm:via-sapphire-deep/35"
+						aria-hidden="true"
+					/>
+					<div
+						className="pointer-events-none absolute inset-0 bg-gradient-to-t from-sapphire-deep/80 via-transparent to-sapphire-deep/50"
+						aria-hidden="true"
+					/>
 				</div>
 
 				{isCursorAmbienceReady && (
 					<div
 						ref={cursorGlowRef}
-						className="pointer-events-none absolute top-0 left-0 z-[2] h-[min(38vw,480px)] w-[min(38vw,480px)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(212,184,134,0.14)_0%,rgba(212,184,134,0.04)_42%,transparent_72%)] opacity-0 will-change-transform"
+						className="pointer-events-none absolute top-0 left-0 z-[2] h-[min(42vw,520px)] w-[min(42vw,520px)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(212,184,134,0.16)_0%,rgba(212,184,134,0.05)_40%,transparent_70%)] opacity-0 will-change-transform"
 						aria-hidden="true"
 					/>
 				)}
+
+				<div
+					className="landing-hero-film-grain pointer-events-none absolute inset-0 z-[12]"
+					aria-hidden="true"
+				/>
+
+				<ArchitecturalFrame />
 
 				<div className="pointer-events-none absolute inset-0 z-30 overflow-hidden" aria-hidden="true">
 					<div
@@ -542,22 +676,26 @@ export function LandingHeroImmersive({ isMobileSSR }: LandingHeroImmersiveProps)
 					/>
 				</div>
 
-				<div
-					ref={contentRef}
-					className="relative z-20 flex min-h-[100dvh] flex-col items-center justify-center px-6 py-20 text-center sm:px-8 sm:py-16 lg:h-full lg:min-h-0 lg:py-0"
-				>
-					<HeroCopy
-						label={t("label")}
+				<div ref={contentRef} className="relative z-20 h-full w-full">
+					<HeroAtelierCopy
+						brandMark={t("brandMark")}
+						atelier={t("atelier")}
+						galleryMetaLine1={t("galleryMetaLine1")}
+						galleryMetaLine2={t("galleryMetaLine2")}
+						chapterIndex={t("chapterIndex")}
 						titleLine1={t("titleLine1")}
 						titleLine2={t("titleLine2")}
 						description={description}
 						primaryCta={t("primaryCta")}
 						secondaryCta={t("secondaryCta")}
-						labelRef={labelRef}
+						scrollLabel={t("scroll")}
+						railRef={railRef}
+						atelierRef={atelierRef}
 						titleLine1Ref={titleLine1Ref}
 						titleLine2Ref={titleLine2Ref}
 						descriptionRef={descriptionRef}
 						actionsRef={actionsRef}
+						scrollRef={scrollRef}
 					/>
 				</div>
 			</div>

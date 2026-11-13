@@ -20,24 +20,24 @@ export interface PorcelainSlabLayout {
 	textureIndex: number;
 }
 
-/** Staggered gallery wall composition. */
+/** Staggered gallery wall — biased right so left-rail type can breathe. */
 export const PORCELAIN_SLAB_LAYOUT: readonly PorcelainSlabLayout[] = [
-	{ position: [-3.1, 0.35, -0.45], rotation: [0, 0.18, -0.02], textureIndex: 0 },
-	{ position: [-1.55, -0.25, 0.15], rotation: [0.04, 0.08, 0], textureIndex: 1 },
-	{ position: [0, 0.15, 0], rotation: [0, 0, 0], textureIndex: 2 },
-	{ position: [1.55, -0.2, 0.08], rotation: [-0.03, -0.1, 0], textureIndex: 3 },
-	{ position: [3.1, 0.45, -0.35], rotation: [0, -0.16, 0.02], textureIndex: 4 },
-	{ position: [-2.35, -1.15, -0.75], rotation: [0.08, 0.14, 0], textureIndex: 5 },
-	{ position: [0.75, -0.95, -0.55], rotation: [0.06, -0.06, 0], textureIndex: 6 },
-	{ position: [2.65, -1.05, -0.65], rotation: [0.05, -0.11, 0], textureIndex: 7 },
+	{ position: [-2.55, 0.42, -0.55], rotation: [0, 0.22, -0.03], textureIndex: 0 },
+	{ position: [-0.85, -0.18, 0.22], rotation: [0.05, 0.1, 0], textureIndex: 1 },
+	{ position: [0.95, 0.28, 0.05], rotation: [0, -0.04, 0], textureIndex: 2 },
+	{ position: [2.45, -0.12, 0.18], rotation: [-0.04, -0.14, 0.01], textureIndex: 3 },
+	{ position: [3.85, 0.55, -0.28], rotation: [0, -0.2, 0.03], textureIndex: 4 },
+	{ position: [-1.75, -1.05, -0.7], rotation: [0.09, 0.16, 0], textureIndex: 5 },
+	{ position: [1.55, -0.88, -0.42], rotation: [0.07, -0.08, 0], textureIndex: 6 },
+	{ position: [3.35, -0.95, -0.55], rotation: [0.06, -0.14, 0.02], textureIndex: 7 },
 ] as const;
 
 /** World-space bounds for cursor-driven rim light (slab cluster + margin). */
 export const LANDING_HERO_RIM_LIGHT_BOUNDS = {
-	minX: -3.55,
-	maxX: 3.55,
+	minX: -3.1,
+	maxX: 4.2,
 	minY: -1.35,
-	maxY: 0.75,
+	maxY: 0.85,
 	surfaceZ: -0.2,
 	/** Distance from surface focus toward camera along view ray. */
 	cameraPull: 1.85,

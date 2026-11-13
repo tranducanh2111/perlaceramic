@@ -105,13 +105,18 @@
 	"landing": {
 		"hero": {
 			"label": "Luxury Porcelain Interior",
+			"brandMark": "Perla",
+			"atelier": "Atelier · Hà Nội",
+			"galleryMetaLine1": "Porcelain",
+			"galleryMetaLine2": "Gallery",
+			"chapterIndex": "01 — Gallery",
 			"titleLine1": "Where Stone",
 			"titleLine2": "Tells a Story",
 			"descriptionLine1": "Bespoke porcelain interiors for discerning spaces.",
 			"descriptionLine2": "Crafted with precision, designed to endure.",
 			"primaryCta": "Explore Our Work",
 			"secondaryCta": "View Collection",
-			"scroll": "Scroll"
+			"scroll": "Scroll to enter"
 		},
 		"brandStatement": {
 			"label": "Our Philosophy",

@@ -105,13 +105,18 @@
 	"landing": {
 		"hero": {
 			"label": "Nội thất porcelain cao cấp",
+			"brandMark": "Perla",
+			"atelier": "Atelier · Hà Nội",
+			"galleryMetaLine1": "Porcelain",
+			"galleryMetaLine2": "Gallery",
+			"chapterIndex": "01 — Gallery",
 			"titleLine1": "Nơi từng phiến đá",
 			"titleLine2": "Kể nên câu chuyện",
 			"descriptionLine1": "Không gian porcelain thiết kế riêng cho gu thẩm mỹ tinh tế.",
 			"descriptionLine2": "Chuẩn xác trong thi công, bền vững theo thời gian.",
 			"primaryCta": "Khám phá dự án",
 			"secondaryCta": "Xem bộ sưu tập",
-			"scroll": "Cuộn xuống"
+			"scroll": "Cuộn để bước vào"
 		},
 		"brandStatement": {
 			"label": "Triết lý của chúng tôi",

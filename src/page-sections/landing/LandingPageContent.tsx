@@ -2,21 +2,9 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
-import { DESKTOP_LAYOUT_QUERY } from "@/constants/breakpoints";
 import { useLenisResizeOnMount } from "@/hooks/useLenisResizeOnMount";
-import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
 import { LandingBrandStatement } from "@/page-sections/landing/LandingBrandStatement";
-import { LandingHero } from "@/page-sections/landing/LandingHero";
-
-/** Desktop-only: keeps GSAP/Three out of the mobile landing bundle. */
-const LandingHeroImmersive = dynamic(
-	() =>
-		import("@/page-sections/landing/LandingHeroImmersive").then((m) => ({
-			default: m.LandingHeroImmersive,
-		})),
-	{ ssr: true },
-);
+import { LandingHeroImmersive } from "@/page-sections/landing/LandingHeroImmersive";
 
 const LandingStats = dynamic(
 	() =>
@@ -42,7 +30,6 @@ const LandingCta = dynamic(
 	{ ssr: false },
 );
 
-/** LandingProjects may use WebGL (LandingProjectsSpiral) (keep ssr:false). */
 const LandingProjects = dynamic(
 	() =>
 		import("@/page-sections/landing/LandingProjects").then((m) => ({
@@ -51,7 +38,6 @@ const LandingProjects = dynamic(
 	{ ssr: false },
 );
 
-/** LandingMaterials uses a 3D tile context internally (keep ssr:false). */
 const LandingMaterials = dynamic(
 	() =>
 		import("@/page-sections/landing/LandingMaterials").then((m) => ({
@@ -60,7 +46,6 @@ const LandingMaterials = dynamic(
 	{ ssr: false },
 );
 
-/** LandingProcess uses scroll-driven animations with browser APIs (keep ssr:false). */
 const LandingProcess = dynamic(
 	() =>
 		import("@/page-sections/landing/LandingProcess").then((m) => ({
@@ -69,7 +54,6 @@ const LandingProcess = dynamic(
 	{ ssr: false },
 );
 
-/** LandingVisualStory uses sticky scroll + panorama (keep ssr:false). */
 const LandingVisualStory = dynamic(
 	() =>
 		import("@/page-sections/landing/LandingVisualStory").then((m) => ({
@@ -78,10 +62,8 @@ const LandingVisualStory = dynamic(
 	{ ssr: false },
 );
 
-/** Long enough to sit outside Lighthouse's typical TBT window when the tab is idle. */
 const BELOW_FOLD_IDLE_TIMEOUT_MS = 8000;
 
-/** Gate heavy below-fold chunks until the main thread is idle (or the user scrolls). */
 function useDeferBelowFoldMount(): boolean {
 	const [shouldMount, setShouldMount] = useState(false);
 
@@ -140,21 +122,9 @@ function useDeferBelowFoldMount(): boolean {
 	return shouldMount;
 }
 
-/** Video cinematic hero on mobile / reduced-motion; luxury 3D gallery on desktop. */
-function LandingHeroSection({ isMobileSSR }: { isMobileSSR?: boolean }) {
-	const isDesktopHero = useMediaQuery(DESKTOP_LAYOUT_QUERY, !isMobileSSR);
-	const prefersReducedMotion = usePrefersReducedMotion();
-
-	if (!isDesktopHero || prefersReducedMotion) {
-		return <LandingHero isMobileSSR={isMobileSSR} />;
-	}
-
-	return <LandingHeroImmersive isMobileSSR={isMobileSSR} />;
-}
-
 /**
- * Client shell (hero + brand statement SSR'd).
- * Heavy below-fold sections wait for idle/input so desktop TBT stays low.
+ * Landing shell — 3D immersive hero is always the homepage hero (never video).
+ * Heavy below-fold sections wait for idle/input.
  */
 export function LandingPageContent({ isMobileSSR }: { isMobileSSR?: boolean }) {
 	useLenisResizeOnMount();
@@ -162,7 +132,7 @@ export function LandingPageContent({ isMobileSSR }: { isMobileSSR?: boolean }) {
 
 	return (
 		<>
-			<LandingHeroSection isMobileSSR={isMobileSSR} />
+			<LandingHeroImmersive isMobileSSR={isMobileSSR} />
 			<LandingBrandStatement />
 			{shouldMountBelowFold ? (
 				<>
